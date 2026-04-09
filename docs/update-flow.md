@@ -23,6 +23,7 @@ Inputs:
 Actions:
 - require a valid git repo
 - resolve current fork commit sha
+- acquire an exclusive state lock at `.t3/state.lock` (prevents concurrent `.t3/` writers)
 - append a `STARTED` entry to `.t3/migration.log`
 - run `hooks.pre-update` when configured
 
@@ -48,9 +49,9 @@ Persisted fields later recorded in triage state:
 ### Phase 2: Sandbox Preparation
 
 Actions:
-- create `.t3/sandbox/<timestamp>/`
-- create a linked worktree at `.t3/sandbox/<timestamp>/worktree`
-- check out a migration branch named `t3-tape/migrate/<timestamp>`
+- create `.t3/sandbox/<sandbox-id>/`
+- create a linked worktree at `.t3/sandbox/<sandbox-id>/worktree`
+- check out a migration branch named `t3-tape/migrate/<sandbox-id>`
 - base the worktree on the fetched upstream commit
 
 Safety boundary:
@@ -78,7 +79,7 @@ How they are produced:
 - `merged-upstream-candidate`: `git apply --reverse --check` succeeds when forward apply does not
 
 Artifacts persisted after triage:
-- `.t3/sandbox/<timestamp>/triage.json`
+- `.t3/sandbox/<sandbox-id>/triage.json`
 - `.t3/triage.json`
 - `TRIAGED` entry appended to `.t3/migration.log`
 
@@ -96,11 +97,11 @@ Expected top-level shape:
   "to-ref-resolved": "<resolved-sha>",
   "upstream": "<repo-url>",
   "timestamp": "<utc-ts>",
-  "sandbox": {
-    "path": ".t3/sandbox/<timestamp>",
-    "worktree-branch": "t3-tape/migrate/<timestamp>",
-    "worktree-path": ".t3/sandbox/<timestamp>/worktree"
-  },
+    "sandbox": {
+    "path": ".t3/sandbox/<sandbox-id>",
+    "worktree-branch": "t3-tape/migrate/<sandbox-id>",
+    "worktree-path": ".t3/sandbox/<sandbox-id>/worktree"
+    },
   "patches": [
     {
       "id": "PATCH-001",
@@ -155,7 +156,7 @@ Apply rules:
 Agent artifact directory:
 
 ```text
-.t3/sandbox/<timestamp>/resolved/
+.t3/sandbox/<sandbox-id>/resolved/
   PATCH-001.diff
   PATCH-001.notes.txt
   PATCH-001.json
@@ -163,7 +164,7 @@ Agent artifact directory:
 
 Preview command behavior:
 - `sandbox.preview-command` runs inside the sandbox worktree when configured
-- stdout and stderr are captured under `.t3/sandbox/<timestamp>/preview/`
+- stdout and stderr are captured under `.t3/sandbox/<sandbox-id>/preview/`
 - preview failure blocks approval but does not delete sandbox artifacts
 
 ## Approval

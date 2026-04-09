@@ -19,11 +19,12 @@ PatchMD-owned state lives under one canonical directory:
 ```text
 .t3/
   patch.md
+  state.lock
   patches/
     PATCH-001.diff
     PATCH-001.meta.json
   sandbox/
-    <timestamp>/
+    <sandbox-id>/
   triage.json
   migration.log
   config.json
@@ -36,6 +37,7 @@ Ownership rules:
 - `triage.json` is the latest update-cycle read model
 - `migration.log` is append-only operational history
 - `config.json` is the operator-controlled protocol config
+- `state.lock` is an ephemeral exclusive lock file used to prevent concurrent `.t3/` writers
 
 Allowed non-owned content:
 - `.t3/reports/`
