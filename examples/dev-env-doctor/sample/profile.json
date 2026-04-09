@@ -1,0 +1,57 @@
+{
+  "name": "t3-tape contributor",
+  "tools": [
+    {
+      "name": "node",
+      "minVersion": "18.18.0",
+      "required": true,
+      "fixHint": "Install Node.js 18.18 or newer."
+    },
+    {
+      "name": "pnpm",
+      "minVersion": "10.0.0",
+      "required": true,
+      "fixHint": "Enable pnpm through Corepack."
+    },
+    {
+      "name": "cargo",
+      "minVersion": "1.80.0",
+      "required": false,
+      "fixHint": "Install Rust if you plan to work on the CLI."
+    }
+  ],
+  "env": [
+    {
+      "name": "GITHUB_TOKEN",
+      "required": false,
+      "fixHint": "Set a GitHub token for release automation."
+    },
+    {
+      "name": "T3_TAPE_AGENT_AUTH_TOKEN",
+      "required": false,
+      "fixHint": "Set the agent token only when using an HTTP provider."
+    }
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "required": true
+    },
+    {
+      "path": ".env.example",
+      "required": false
+    }
+  ],
+  "services": [
+    {
+      "name": "git",
+      "required": true,
+      "needReachable": false
+    },
+    {
+      "name": "docker",
+      "required": false,
+      "needReachable": true
+    }
+  ]
+}

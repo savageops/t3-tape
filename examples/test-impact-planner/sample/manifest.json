@@ -1,0 +1,87 @@
+{
+  "defaultCommands": [
+    "pnpm test"
+  ],
+  "defaultOwners": [
+    "platform"
+  ],
+  "ignore": [
+    "docs/**",
+    "**/*.md"
+  ],
+  "fullRunRules": [
+    {
+      "id": "dependency-lock",
+      "match": [
+        "pnpm-lock.yaml",
+        "Cargo.lock"
+      ],
+      "commands": [
+        "pnpm test",
+        "cargo test -p t3-tape"
+      ],
+      "owners": [
+        "release"
+      ],
+      "labels": [
+        "full-run"
+      ],
+      "risk": "high",
+      "reason": "Dependency graph changed."
+    }
+  ],
+  "rules": [
+    {
+      "id": "cli",
+      "match": [
+        "crates/**",
+        "Cargo.toml"
+      ],
+      "commands": [
+        "cargo test -p t3-tape"
+      ],
+      "owners": [
+        "cli"
+      ],
+      "labels": [
+        "rust"
+      ],
+      "risk": "high",
+      "reason": "Rust CLI surface changed."
+    },
+    {
+      "id": "launcher",
+      "match": [
+        "packages/**"
+      ],
+      "commands": [
+        "pnpm -C packages/t3-tape-npm test"
+      ],
+      "owners": [
+        "launcher"
+      ],
+      "labels": [
+        "node"
+      ],
+      "risk": "medium",
+      "reason": "Launcher surface changed."
+    },
+    {
+      "id": "examples",
+      "match": [
+        "examples/**"
+      ],
+      "commands": [
+        "pnpm run test:examples"
+      ],
+      "owners": [
+        "examples"
+      ],
+      "labels": [
+        "examples"
+      ],
+      "risk": "medium",
+      "reason": "Example applications changed."
+    }
+  ]
+}

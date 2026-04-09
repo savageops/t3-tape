@@ -1,0 +1,26 @@
+{
+  "protocol": "0.1.0",
+  "upstream": "https://github.com/acme/editor-shell",
+  "agent": {
+    "provider": "exec",
+    "endpoint": "node scripts/agent-runner.mjs",
+    "model": "agent-review-stub",
+    "confidence-threshold": 0.8,
+    "max-attempts": 3,
+    "parallel-rederivation": true
+  },
+  "sandbox": {
+    "auto-spin": true,
+    "preview-command": "pnpm test",
+    "cleanup-after-days": 7
+  },
+  "hooks": {
+    "pre-patch": "",
+    "post-patch": "",
+    "pre-update": "",
+    "post-update": "",
+    "on-conflict": ""
+  },
+  "gitignore-sandbox": true,
+  "commit-both-layers": true
+}

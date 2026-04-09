@@ -1,0 +1,5 @@
+feat(ui): add patch preview card
+fix(cli): keep triage approval state stable
+docs: expand automation setup examples
+perf(update): skip duplicate diff parsing
+chore: refresh release workflow

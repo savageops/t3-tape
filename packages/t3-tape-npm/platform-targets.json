@@ -1,0 +1,38 @@
+[
+  {
+    "nodePlatform": "win32",
+    "nodeArch": "x64",
+    "targetTriple": "x86_64-pc-windows-msvc",
+    "packageName": "@t3-tape/t3-tape-x86_64-pc-windows-msvc",
+    "packageDir": "../t3-tape-x86_64-pc-windows-msvc",
+    "binaryName": "t3-tape.exe",
+    "binaryPath": "bin/t3-tape.exe"
+  },
+  {
+    "nodePlatform": "linux",
+    "nodeArch": "x64",
+    "targetTriple": "x86_64-unknown-linux-gnu",
+    "packageName": "@t3-tape/t3-tape-x86_64-unknown-linux-gnu",
+    "packageDir": "../t3-tape-x86_64-unknown-linux-gnu",
+    "binaryName": "t3-tape",
+    "binaryPath": "bin/t3-tape"
+  },
+  {
+    "nodePlatform": "darwin",
+    "nodeArch": "x64",
+    "targetTriple": "x86_64-apple-darwin",
+    "packageName": "@t3-tape/t3-tape-x86_64-apple-darwin",
+    "packageDir": "../t3-tape-x86_64-apple-darwin",
+    "binaryName": "t3-tape",
+    "binaryPath": "bin/t3-tape"
+  },
+  {
+    "nodePlatform": "darwin",
+    "nodeArch": "arm64",
+    "targetTriple": "aarch64-apple-darwin",
+    "packageName": "@t3-tape/t3-tape-aarch64-apple-darwin",
+    "packageDir": "../t3-tape-aarch64-apple-darwin",
+    "binaryName": "t3-tape",
+    "binaryPath": "bin/t3-tape"
+  }
+]

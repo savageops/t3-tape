@@ -1,0 +1,24 @@
+{
+  "patches": [
+    {
+      "id": "PATCH-001",
+      "passed": 2,
+      "failed": 0,
+      "failing-assertions": []
+    },
+    {
+      "id": "PATCH-002",
+      "passed": 1,
+      "failed": 1,
+      "failing-assertions": [
+        "command palette shows the plugin action"
+      ]
+    },
+    {
+      "id": "PATCH-003",
+      "passed": 2,
+      "failed": 0,
+      "failing-assertions": []
+    }
+  ]
+}

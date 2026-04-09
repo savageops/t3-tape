@@ -1,0 +1,19 @@
+{
+  "name": "@t3-tape-examples/release-note-router",
+  "private": true,
+  "type": "module",
+  "description": "Example CLI that turns commits into grouped release notes and bump guidance",
+  "bin": {
+    "release-note-router": "src/cli.js"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "start": "node src/cli.js --help",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

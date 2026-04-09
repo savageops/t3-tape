@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/t3-tape"]
+resolver = "2"

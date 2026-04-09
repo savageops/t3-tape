@@ -1,0 +1,17 @@
+{
+  "id": "PATCH-001",
+  "title": "toolbar-settings-button",
+  "status": "active",
+  "base-ref": "abc1234",
+  "current-ref": "abc1234",
+  "diff-file": "patches/PATCH-001.diff",
+  "apply-confidence": 1.0,
+  "last-applied": "2026-04-09T10:00:00Z",
+  "last-checked": "2026-04-09T10:00:00Z",
+  "agent-attempts": 0,
+  "surface-hash": "example-surface-hash",
+  "behavior-assertions": [
+    "the customized app surface still renders the patched line",
+    "the change remains attributable to a named PatchMD record"
+  ]
+}

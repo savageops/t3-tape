@@ -1,0 +1,12 @@
+[2026-04-09T10:00:00Z] UPDATE CYCLE
+  from-ref: abc1234
+  to-ref:   def5678
+  patches:  1 active
+  clean:    1
+  resolved: 0
+  rederived: 0
+  failed:   0
+  sandbox:  .t3/sandbox/20260409-100000Z/
+  approved: 2026-04-09T10:05:00Z by example-user
+  status:   COMPLETE
+---

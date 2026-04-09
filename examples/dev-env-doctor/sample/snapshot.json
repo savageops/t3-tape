@@ -1,0 +1,24 @@
+{
+  "tools": {
+    "node": "20.11.1",
+    "pnpm": "10.27.0",
+    "cargo": "1.86.0"
+  },
+  "env": {
+    "GITHUB_TOKEN": "ghp_example"
+  },
+  "files": [
+    "README.md",
+    ".env.example"
+  ],
+  "services": {
+    "git": {
+      "status": "running",
+      "reachable": true
+    },
+    "docker": {
+      "status": "stopped",
+      "reachable": false
+    }
+  }
+}

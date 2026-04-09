@@ -1,0 +1,38 @@
+{
+  "name": "@t3-tape/t3-tape",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "t3-tape": "dist/cli.js"
+  },
+  "exports": {
+    "./env": "./dist/env.js",
+    "./platform": "./dist/platform.js",
+    "./resolve": "./dist/resolve.js"
+  },
+  "files": [
+    "dist",
+    "platform-targets.json",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "build": "tsup src/cli.ts src/env.ts src/platform.ts src/resolve.ts --format esm --out-dir dist --clean",
+    "prepare:platform-packages": "node ./scripts/prepare-platform-packages.mjs",
+    "test": "pnpm run build && vitest run"
+  },
+  "optionalDependencies": {
+    "@t3-tape/t3-tape-aarch64-apple-darwin": "workspace:0.1.0",
+    "@t3-tape/t3-tape-x86_64-apple-darwin": "workspace:0.1.0",
+    "@t3-tape/t3-tape-x86_64-pc-windows-msvc": "workspace:0.1.0",
+    "@t3-tape/t3-tape-x86_64-unknown-linux-gnu": "workspace:0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8"
+  }
+}

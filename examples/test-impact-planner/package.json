@@ -1,0 +1,19 @@
+{
+  "name": "@t3-tape-examples/test-impact-planner",
+  "private": true,
+  "type": "module",
+  "description": "Example CLI that turns changed files into a focused test plan",
+  "bin": {
+    "test-impact-planner": "src/cli.js"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "start": "node src/cli.js --help",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

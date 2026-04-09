@@ -1,0 +1,31 @@
+[package]
+name = "t3-tape"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+time = { version = "0.3", features = ["formatting"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+
+[dev-dependencies]
+assert_cmd = "2"
+assert_fs = "1"
+predicates = "3"
+tempfile = "3"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "t3-tape"
+path = "src/main.rs"

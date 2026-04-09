@@ -1,0 +1,12 @@
+{
+  "name": "@t3-tape-examples/agent-kit",
+  "private": true,
+  "type": "module",
+  "description": "Shared helper layer for T3 Tape agentic example apps",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

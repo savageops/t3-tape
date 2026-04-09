@@ -1,0 +1,60 @@
+{
+  "projects": [
+    {
+      "id": "editor-shell-fork",
+      "repo-root": "repos/editor-shell-fork",
+      "state-dir": "repos/editor-shell-fork/.t3",
+      "upstream": "acme/editor-shell",
+      "current-ref": "v2.4.0",
+      "update-channel": "stable",
+      "auto-run": true,
+      "allow-breaking": false,
+      "accept-prerelease": false,
+      "confidence-threshold": 0.8,
+      "has-open-triage": false,
+      "priority": "high"
+    },
+    {
+      "id": "plugin-runtime-fork",
+      "repo-root": "repos/plugin-runtime-fork",
+      "state-dir": "repos/plugin-runtime-fork/.t3",
+      "upstream": "acme/plugin-runtime",
+      "current-ref": "v1.8.0",
+      "update-channel": "stable",
+      "auto-run": true,
+      "allow-breaking": false,
+      "accept-prerelease": false,
+      "confidence-threshold": 0.85,
+      "has-open-triage": true,
+      "priority": "high"
+    },
+    {
+      "id": "preview-shell-fork",
+      "repo-root": "repos/preview-shell-fork",
+      "state-dir": "repos/preview-shell-fork/.t3",
+      "upstream": "acme/preview-shell",
+      "current-ref": "v3.0.0-beta.1",
+      "update-channel": "beta",
+      "auto-run": false,
+      "allow-breaking": true,
+      "accept-prerelease": true,
+      "confidence-threshold": 0.75,
+      "has-open-triage": false,
+      "priority": "medium"
+    },
+    {
+      "id": "docs-fork",
+      "repo-root": "repos/docs-fork",
+      "state-dir": "repos/docs-fork/.t3",
+      "upstream": "acme/docs-site",
+      "current-ref": "v5.1.1",
+      "update-channel": "stable",
+      "auto-run": false,
+      "allow-breaking": false,
+      "accept-prerelease": false,
+      "confidence-threshold": 0.9,
+      "has-open-triage": false,
+      "priority": "low"
+    }
+  ]
+}

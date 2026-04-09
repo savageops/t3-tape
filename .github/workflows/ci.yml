@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust toolchain components
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup component add rustfmt clippy
+
+      - name: Cargo fmt
+        run: cargo fmt --check
+
+      - name: Cargo clippy
+        run: cargo clippy -p t3-tape --all-targets -- -D warnings
+
+      - name: Cargo test
+        run: cargo test -p t3-tape
+
+      - name: Launcher tests
+        run: pnpm -C packages/t3-tape-npm test
+
+      - name: Example app tests
+        run: pnpm run test:examples
+
+      - name: Build Rust binary for launcher smoke
+        run: cargo build -p t3-tape
+
+      - name: Build launcher dist
+        run: pnpm -C packages/t3-tape-npm build
+
+      - name: Launcher smoke
+        shell: pwsh
+        run: |
+          if ($env:RUNNER_OS -eq 'Windows') {
+            $binary = Join-Path $PWD 'target\debug\t3-tape.exe'
+          }
+          else {
+            $binary = Join-Path $PWD 'target/debug/t3-tape'
+          }
+          $env:T3_TAPE_BINARY_PATH = $binary
+          node packages/t3-tape-npm/dist/cli.js --help

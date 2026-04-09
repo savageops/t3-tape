@@ -1,0 +1,19 @@
+{
+  "name": "@t3-tape-examples/fleet-upgrade-coordinator",
+  "private": true,
+  "type": "module",
+  "description": "Example CLI that schedules t3-tape update work across many forks",
+  "bin": {
+    "fleet-upgrade-coordinator": "src/cli.js"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "start": "node src/cli.js --help",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

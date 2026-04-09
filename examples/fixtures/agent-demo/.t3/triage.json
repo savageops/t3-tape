@@ -1,0 +1,74 @@
+{
+  "schema-version": "0.1.0",
+  "from-ref": "abc1234",
+  "to-ref": "v2.4.1",
+  "to-ref-resolved": "def5678",
+  "upstream": "https://github.com/acme/editor-shell",
+  "timestamp": "2026-04-09T11:00:00Z",
+  "sandbox": {
+    "path": ".t3/sandbox/20260409-110000",
+    "worktree-branch": "t3-tape/migrate/20260409-110000",
+    "worktree-path": ".t3/sandbox/20260409-110000/worktree"
+  },
+  "patches": [
+    {
+      "id": "PATCH-001",
+      "title": "plugin-settings-toolbar-button",
+      "detected-status": "CONFLICT",
+      "triage-status": "pending-review",
+      "merged-upstream-candidate": false,
+      "apply-stderr": "patch does not apply cleanly",
+      "confidence": 0.93,
+      "agent-mode": "conflict-resolution",
+      "notes": "Toolbar slot API changed; the button was moved to the new actions array.",
+      "unresolved": [],
+      "resolved-diff-path": ".t3/sandbox/20260409-110000/resolved/PATCH-001.diff",
+      "notes-path": ".t3/sandbox/20260409-110000/resolved/PATCH-001.notes.txt",
+      "raw-response-path": ".t3/sandbox/20260409-110000/resolved/PATCH-001.json",
+      "apply-commit": "1111aaaa",
+      "approved": false
+    },
+    {
+      "id": "PATCH-002",
+      "title": "command-palette-plugin-bridge",
+      "detected-status": "MISSING-SURFACE",
+      "triage-status": "NEEDS-YOU",
+      "merged-upstream-candidate": false,
+      "apply-stderr": "path src/editor/commands.ts no longer exists",
+      "confidence": 0.61,
+      "agent-mode": "re-derivation",
+      "notes": "The old command registry disappeared and the replacement command source could not be mapped with high confidence.",
+      "unresolved": [
+        "command palette shows the plugin action"
+      ],
+      "resolved-diff-path": null,
+      "notes-path": ".t3/sandbox/20260409-110000/resolved/PATCH-002.notes.txt",
+      "raw-response-path": ".t3/sandbox/20260409-110000/resolved/PATCH-002.json",
+      "apply-commit": null,
+      "approved": false
+    },
+    {
+      "id": "PATCH-003",
+      "title": "schema-change-cache-reset",
+      "detected-status": "CLEAN",
+      "triage-status": "CLEAN",
+      "merged-upstream-candidate": false,
+      "apply-stderr": "",
+      "confidence": 1.0,
+      "agent-mode": null,
+      "notes": null,
+      "unresolved": [],
+      "resolved-diff-path": ".t3/sandbox/20260409-110000/resolved/PATCH-003.diff",
+      "notes-path": null,
+      "raw-response-path": null,
+      "apply-commit": "2222bbbb",
+      "approved": true
+    }
+  ],
+  "preview": {
+    "command": "pnpm test",
+    "exit-code": 0,
+    "stdout-path": ".t3/sandbox/20260409-110000/preview/stdout.log",
+    "stderr-path": ".t3/sandbox/20260409-110000/preview/stderr.log"
+  }
+}

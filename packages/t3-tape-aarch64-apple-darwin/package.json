@@ -1,0 +1,12 @@
+{
+  "name": "@t3-tape/t3-tape-aarch64-apple-darwin",
+  "version": "0.1.0",
+  "description": "Packaged t3-tape binary for aarch64-apple-darwin.",
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "files": ["bin", "README.md", "package.json"],
+  "t3-tape": {
+    "targetTriple": "aarch64-apple-darwin",
+    "binaryPath": "bin/t3-tape"
+  }
+}

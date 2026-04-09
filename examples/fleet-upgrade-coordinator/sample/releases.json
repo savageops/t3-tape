@@ -1,0 +1,42 @@
+[
+  {
+    "upstream": "acme/editor-shell",
+    "version": "v2.4.1",
+    "channel": "stable",
+    "breaking": false,
+    "security": true,
+    "published-at": "2026-04-09"
+  },
+  {
+    "upstream": "acme/editor-shell",
+    "version": "v2.5.0",
+    "channel": "stable",
+    "breaking": false,
+    "security": false,
+    "published-at": "2026-04-10"
+  },
+  {
+    "upstream": "acme/plugin-runtime",
+    "version": "v1.8.1",
+    "channel": "stable",
+    "breaking": false,
+    "security": false,
+    "published-at": "2026-04-10"
+  },
+  {
+    "upstream": "acme/preview-shell",
+    "version": "v3.0.0-beta.2",
+    "channel": "beta",
+    "breaking": false,
+    "security": false,
+    "published-at": "2026-04-11"
+  },
+  {
+    "upstream": "acme/docs-site",
+    "version": "v6.0.0",
+    "channel": "stable",
+    "breaking": true,
+    "security": false,
+    "published-at": "2026-04-12"
+  }
+]

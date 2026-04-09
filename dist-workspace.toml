@@ -1,0 +1,16 @@
+[dist]
+cargo-dist-version = "0.29.0"
+ci = "github"
+checksum = "sha256"
+hosting = ["github"]
+installers = ["shell", "powershell"]
+pr-run-mode = "plan"
+targets = [
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin"
+]
+
+[workspace]
+members = ["cargo:."]

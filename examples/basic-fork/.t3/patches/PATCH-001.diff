@@ -1,0 +1,7 @@
+diff --git a/src/app.txt b/src/app.txt
+--- a/src/app.txt
++++ b/src/app.txt
+@@ -1,2 +1,2 @@
+ alpha
+-base
++patched

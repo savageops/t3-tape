@@ -1,0 +1,164 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust toolchain components
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup component add rustfmt clippy
+
+      - name: Cargo test
+        run: cargo test -p t3-tape
+
+      - name: Launcher tests
+        run: pnpm -C packages/t3-tape-npm test
+
+      - name: Example app tests
+        run: pnpm run test:examples
+
+  build-artifacts:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-13
+            target: x86_64-apple-darwin
+          - os: macos-14
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Install cargo-dist
+        run: cargo install cargo-dist --locked --version 0.29.0
+
+      - name: Build cargo-dist artifacts
+        run: cargo dist build --artifacts=local --target ${{ matrix.target }}
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.target }}
+          path: dist
+          if-no-files-found: error
+
+  publish:
+    needs: build-artifacts
+    runs-on: ubuntu-latest
+    environment: release
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - name: Prepare packaged platform packages
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          pnpm -C packages/t3-tape-npm run prepare:platform-packages -- --artifacts-dir dist --version "$VERSION"
+          pnpm -C packages/t3-tape-npm build
+
+      - name: Publish packaged target binaries
+        shell: bash
+        run: |
+          for pkg in \
+            packages/t3-tape-x86_64-pc-windows-msvc \
+            packages/t3-tape-x86_64-unknown-linux-gnu \
+            packages/t3-tape-x86_64-apple-darwin \
+            packages/t3-tape-aarch64-apple-darwin
+          do
+            (cd "$pkg" && npm publish --access public)
+          done
+
+      - name: Publish launcher package
+        shell: bash
+        run: |
+          cd packages/t3-tape-npm
+          npm publish --access public
+
+      - name: Attach checksum files to the GitHub release
+        shell: pwsh
+        run: |
+          $checksumFiles = Get-ChildItem -LiteralPath dist -Recurse -File | Where-Object { $_.Name -match 'sha256' } | Select-Object -ExpandProperty FullName
+          if (-not $checksumFiles) {
+            throw 'No checksum files were found under dist/'
+          }
+          gh release upload $env:GITHUB_REF_NAME $checksumFiles --clobber

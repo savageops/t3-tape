@@ -1,0 +1,11 @@
+[2026-04-09T11:00:00Z] UPDATE CYCLE
+  from-ref: abc1234
+  to-ref:   v2.4.1
+  patches:  3 active
+  clean:    1
+  resolved: 1 (agent, confidence 0.93)
+  rederived: 0
+  failed:   1
+  sandbox:  .t3/sandbox/20260409-110000/
+  status:   TRIAGED
+---

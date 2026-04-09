@@ -1,0 +1,12 @@
+{
+  "name": "@t3-tape-examples/basic-fork",
+  "private": true,
+  "type": "module",
+  "description": "Protocol fixture example for a committed T3 Tape fork",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

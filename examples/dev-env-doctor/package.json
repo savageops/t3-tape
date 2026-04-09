@@ -1,0 +1,19 @@
+{
+  "name": "@t3-tape-examples/dev-env-doctor",
+  "private": true,
+  "type": "module",
+  "description": "Example CLI that checks developer environment readiness",
+  "bin": {
+    "dev-env-doctor": "src/cli.js"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "start": "node src/cli.js --help",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

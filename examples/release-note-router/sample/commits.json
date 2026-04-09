@@ -1,0 +1,16 @@
+[
+  {
+    "type": "feat",
+    "scope": "ui",
+    "summary": "add patch preview card"
+  },
+  {
+    "type": "fix",
+    "scope": "cli",
+    "summary": "keep triage approval state stable"
+  },
+  {
+    "type": "docs",
+    "summary": "expand automation setup examples"
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "protocol": "0.1.0",
+  "upstream": "https://github.com/example/upstream-app",
+  "agent": {
+    "provider": "",
+    "endpoint": "",
+    "model": "",
+    "confidence-threshold": 0.8,
+    "max-attempts": 3,
+    "parallel-rederivation": true
+  },
+  "sandbox": {
+    "auto-spin": true,
+    "preview-command": "",
+    "cleanup-after-days": 7
+  },
+  "hooks": {
+    "pre-patch": "",
+    "post-patch": "",
+    "pre-update": "",
+    "post-update": "",
+    "on-conflict": ""
+  },
+  "commit-both-layers": true,
+  "gitignore-sandbox": true
+}

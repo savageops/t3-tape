@@ -1,0 +1,19 @@
+{
+  "name": "@t3-tape-examples/agent-handoff-builder",
+  "private": true,
+  "type": "module",
+  "description": "Example CLI that turns .t3 triage state into agent handoff jobs",
+  "bin": {
+    "agent-handoff-builder": "src/cli.js"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "start": "node src/cli.js --help",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}
