@@ -1,5 +1,6 @@
 use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
+use std::io::{Read, Seek, SeekFrom};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -52,6 +53,34 @@ pub fn write_file_atomic(path: &Path, contents: &[u8]) -> Result<(), RedtapeErro
         let _ = fs::remove_file(&temp_path);
         err.into()
     })
+}
+
+pub fn append_lines(path: &Path, lines: &[String]) -> Result<(), RedtapeError> {
+    let parent = path.parent().ok_or_else(|| {
+        RedtapeError::Usage(format!("path has no parent directory: {}", path.display()))
+    })?;
+    fs::create_dir_all(parent)?;
+
+    let mut file = OpenOptions::new()
+        .read(true)
+        .append(true)
+        .create(true)
+        .open(path)?;
+
+    let len = file.metadata()?.len();
+    if len > 0 {
+        file.seek(SeekFrom::End(-1))?;
+        let mut last = [0u8; 1];
+        file.read_exact(&mut last)?;
+        if last[0] != b'\n' {
+            file.write_all(b"\n")?;
+        }
+    }
+
+    file.write_all(lines.join("\n").as_bytes())?;
+    file.write_all(b"\n")?;
+    file.sync_all()?;
+    Ok(())
 }
 
 fn write_temp_file(path: &Path, contents: &[u8]) -> std::io::Result<()> {

@@ -3,11 +3,13 @@ use std::fs;
 use crate::cli::PatchImportArgs;
 use crate::exit::RedtapeError;
 use crate::patch::{self, NewPatchSpec, UnifiedDiff};
+use crate::store::lock::StateLock;
 
 use super::GlobalOptions;
 
 pub fn run(global: &GlobalOptions, args: &PatchImportArgs) -> Result<(), RedtapeError> {
     let paths = patch::resolve_paths(global)?;
+    let _lock = StateLock::acquire(&paths.lock_path)?;
     let raw_diff = fs::read_to_string(&args.diff)?;
     let specs = build_specs(args, &raw_diff)?;
     let context = patch::build_write_context(&paths.repo_root)?;

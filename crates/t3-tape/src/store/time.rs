@@ -5,6 +5,10 @@ pub fn current_utc_compact_timestamp() -> String {
     format_compact_timestamp(OffsetDateTime::now_utc())
 }
 
+pub fn current_utc_compact_timestamp_micros() -> String {
+    format_compact_timestamp_micros(OffsetDateTime::now_utc())
+}
+
 pub fn current_utc_date() -> String {
     format_utc_date(OffsetDateTime::now_utc())
 }
@@ -22,6 +26,19 @@ pub fn format_compact_timestamp(datetime: OffsetDateTime) -> String {
         datetime.hour(),
         datetime.minute(),
         datetime.second()
+    )
+}
+
+pub fn format_compact_timestamp_micros(datetime: OffsetDateTime) -> String {
+    format!(
+        "{:04}{:02}{:02}-{:02}{:02}{:02}-{:06}Z",
+        datetime.year(),
+        u8::from(datetime.month()),
+        datetime.day(),
+        datetime.hour(),
+        datetime.minute(),
+        datetime.second(),
+        datetime.microsecond()
     )
 }
 

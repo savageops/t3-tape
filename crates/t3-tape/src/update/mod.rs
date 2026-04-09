@@ -14,6 +14,7 @@ use crate::commands::GlobalOptions;
 use crate::exit::RedtapeError;
 use crate::patch::{self, PatchEntry, PatchId, UnifiedDiff};
 use crate::store::atomic;
+use crate::store::lock::StateLock;
 use crate::store::schema::{self, Config};
 use crate::store::time;
 use crate::validate::full;
@@ -57,6 +58,7 @@ pub fn run_update(
     args: &UpdateArgs,
 ) -> Result<UpdateOutcome, RedtapeError> {
     let paths = patch::resolve_paths(global)?;
+    let _lock = StateLock::acquire(&paths.lock_path)?;
     ensure_repo_valid(&paths)?;
     let config = schema::read_config(&paths.config_path)?;
     let from_ref = git::head(&paths.repo_root)?;
@@ -175,6 +177,7 @@ pub fn approve_patch(
     args: &TriageApproveArgs,
 ) -> Result<ApprovalOutcome, RedtapeError> {
     let paths = patch::resolve_paths(global)?;
+    let _lock = StateLock::acquire(&paths.lock_path)?;
     let config = schema::read_config(&paths.config_path)?;
     let mut summary = triage::read(&paths.triage_path)?;
     let to_ref_resolved = summary.to_ref_resolved.clone();
@@ -292,6 +295,7 @@ pub fn rederive_patch(
     args: &RederiveArgs,
 ) -> Result<TriageSummary, RedtapeError> {
     let paths = patch::resolve_paths(global)?;
+    let _lock = StateLock::acquire(&paths.lock_path)?;
     let config = schema::read_config(&paths.config_path)?;
     let mut summary = triage::read(&paths.triage_path)?;
     let (_, document) = patch::read_document(&paths)?;
@@ -761,17 +765,7 @@ fn append_complete_log(
 }
 
 fn append_log(path: &Path, lines: &[String]) -> Result<(), RedtapeError> {
-    let mut existing = if path.exists() {
-        fs::read_to_string(path)?
-    } else {
-        String::new()
-    };
-    if !existing.is_empty() && !existing.ends_with('\n') {
-        existing.push('\n');
-    }
-    existing.push_str(&lines.join("\n"));
-    existing.push('\n');
-    atomic::write_file_atomic(path, existing.as_bytes())
+    atomic::append_lines(path, lines)
 }
 
 fn run_hook(command: &str, cwd: &Path, envs: &[(&str, String)]) -> Result<(), RedtapeError> {

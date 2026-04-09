@@ -5,6 +5,7 @@ use std::process::Command as StdCommand;
 use assert_cmd::Command;
 use assert_fs::fixture::{ChildPath, PathChild};
 use assert_fs::prelude::*;
+use fs2::FileExt;
 use predicates::prelude::*;
 use serde_json::{json, Value};
 use t3_tape::patch::{surface_hash, UnifiedDiff};
@@ -59,6 +60,32 @@ fn run_init(temp: &assert_fs::TempDir) {
         ])
         .assert()
         .success();
+}
+
+#[test]
+fn patch_add_fails_when_state_lock_held() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let tracked = seed_repo(&temp);
+    run_init(&temp);
+
+    let lock_path = temp.child(".t3/state.lock");
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(lock_path.path())
+        .unwrap();
+    file.lock_exclusive().unwrap();
+
+    tracked.write_str("alpha\npatched\n").unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args(["patch", "add", "--title", "x", "--intent", "y"])
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicate::str::contains("state lock held"));
 }
 
 fn set_pre_patch_hook(temp: &assert_fs::TempDir, command: &str) {

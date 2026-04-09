@@ -509,7 +509,7 @@ fn hooks_print_outputs_are_stable() {
         .assert()
         .success()
         .stdout(predicate::eq(
-            ".t3/sandbox/\n.t3/config.json.local\n",
+            ".t3/sandbox/\n.t3/config.json.local\n.t3/state.lock\n",
         ));
 
     t3_tape_command()

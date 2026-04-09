@@ -18,7 +18,8 @@ pub struct SandboxContext {
 
 impl SandboxContext {
     pub fn new(paths: &ResolvedPaths) -> Self {
-        let timestamp = time::current_utc_compact_timestamp();
+        let pid = std::process::id();
+        let timestamp = format!("{}-{pid}", time::current_utc_compact_timestamp_micros());
         let root = paths.sandbox_dir.join(&timestamp);
         let triage_path = root.join("triage.json");
         let resolved_dir = root.join("resolved");

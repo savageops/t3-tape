@@ -1,11 +1,13 @@
 use crate::cli::PatchAddArgs;
 use crate::exit::RedtapeError;
 use crate::patch::{self, NewPatchSpec};
+use crate::store::lock::StateLock;
 
 use super::GlobalOptions;
 
 pub fn run(global: &GlobalOptions, args: &PatchAddArgs) -> Result<(), RedtapeError> {
     let paths = patch::resolve_paths(global)?;
+    let _lock = StateLock::acquire(&paths.lock_path)?;
     let intent = resolve_intent(args)?;
     let raw_diff = patch::capture_git_diff(&paths.repo_root, args.staged)?;
     let context = patch::build_write_context(&paths.repo_root)?;

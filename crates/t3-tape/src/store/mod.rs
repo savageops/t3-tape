@@ -1,4 +1,5 @@
 pub mod atomic;
+pub mod lock;
 pub mod paths;
 pub mod schema;
 pub mod time;
@@ -40,6 +41,8 @@ pub fn initialize(request: InitRequest) -> Result<InitReport, RedtapeError> {
         state_dir_override: state_dir,
         cwd,
     })?;
+
+    let _lock = lock::StateLock::acquire(&paths.lock_path)?;
 
     ensure_existing_directory(&paths.repo_root, "repo root")?;
 

@@ -5,6 +5,7 @@ use std::process::Command as StdCommand;
 use assert_cmd::Command;
 use assert_fs::fixture::{FileWriteStr, PathChild, PathCreateDir};
 use assert_fs::TempDir;
+use fs2::FileExt;
 use predicates::prelude::*;
 use serde_json::{json, Value};
 use t3_tape::agent;
@@ -58,6 +59,32 @@ fn write_file(path: &Path, content: &str) {
         fs::create_dir_all(parent).unwrap();
     }
     fs::write(path, content).unwrap();
+}
+
+#[test]
+fn update_fails_when_state_lock_held() {
+    let pair = RepoPair::new();
+    run_init(&pair.fork, &pair.upstream);
+
+    let lock_path = pair.fork.join(".t3/state.lock");
+    if let Some(parent) = lock_path.parent() {
+        fs::create_dir_all(parent).unwrap();
+    }
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&lock_path)
+        .unwrap();
+    file.lock_exclusive().unwrap();
+
+    t3_tape_command()
+        .current_dir(&pair.fork)
+        .args(["update", "--ref", "HEAD"])
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(predicate::str::contains("state lock held"));
 }
 
 struct RepoPair {
