@@ -15,8 +15,6 @@ pub struct Config {
     pub agent: AgentConfig,
     pub sandbox: SandboxConfig,
     pub hooks: HooksConfig,
-    pub commit_both_layers: bool,
-    pub gitignore_sandbox: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -25,10 +23,8 @@ pub struct AgentConfig {
     #[serde(default)]
     pub provider: String,
     pub endpoint: String,
-    pub model: String,
     pub confidence_threshold: f64,
     pub max_attempts: u8,
-    pub parallel_rederivation: bool,
 }
 
 impl AgentConfig {
@@ -40,9 +36,7 @@ impl AgentConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct SandboxConfig {
-    pub auto_spin: bool,
     pub preview_command: String,
-    pub cleanup_after_days: u16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -75,15 +69,11 @@ pub fn default_config(upstream: &str) -> Config {
         agent: AgentConfig {
             provider: String::new(),
             endpoint: String::new(),
-            model: String::new(),
             confidence_threshold: 0.80,
             max_attempts: 3,
-            parallel_rederivation: true,
         },
         sandbox: SandboxConfig {
-            auto_spin: true,
             preview_command: String::new(),
-            cleanup_after_days: 7,
         },
         hooks: HooksConfig {
             pre_patch: String::new(),
@@ -92,8 +82,6 @@ pub fn default_config(upstream: &str) -> Config {
             post_update: String::new(),
             on_conflict: String::new(),
         },
-        commit_both_layers: true,
-        gitignore_sandbox: true,
     }
 }
 

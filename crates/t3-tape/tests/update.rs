@@ -168,13 +168,11 @@ fn write_config_value(fork_root: &Path, key_path: &[&str], value: Value) {
 fn configure_exec_agent(fork_root: &Path, endpoint: &str, threshold: f64) {
     write_config_value(fork_root, &["agent", "provider"], json!("exec"));
     write_config_value(fork_root, &["agent", "endpoint"], json!(endpoint));
-    write_config_value(fork_root, &["agent", "model"], json!("stub"));
     write_config_value(
         fork_root,
         &["agent", "confidence-threshold"],
         json!(threshold),
     );
-    write_config_value(fork_root, &["agent", "parallel-rederivation"], json!(false));
 }
 
 fn configure_preview_command(fork_root: &Path, command: &str) {
@@ -381,10 +379,8 @@ fn agent_provider_contracts_are_stable() {
     let config = AgentConfig {
         provider: "exec".to_string(),
         endpoint,
-        model: "stub".to_string(),
         confidence_threshold: 0.80,
         max_attempts: 3,
-        parallel_rederivation: false,
     };
 
     let request = ConflictResolutionRequest {
@@ -406,10 +402,8 @@ fn agent_provider_contracts_are_stable() {
         agent::provider_kind(&AgentConfig {
             provider: String::new(),
             endpoint: "https://example.com/agent".to_string(),
-            model: String::new(),
             confidence_threshold: 0.8,
             max_attempts: 3,
-            parallel_rederivation: false,
         }),
         agent::ProviderKind::Http
     );
@@ -417,10 +411,8 @@ fn agent_provider_contracts_are_stable() {
         agent::provider_kind(&AgentConfig {
             provider: String::new(),
             endpoint: String::new(),
-            model: String::new(),
             confidence_threshold: 0.8,
             max_attempts: 3,
-            parallel_rederivation: false,
         }),
         agent::ProviderKind::None
     );

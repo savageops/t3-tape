@@ -22,10 +22,8 @@ Provider selection happens from `.t3/config.json`:
   "agent": {
     "provider": "exec",
     "endpoint": "powershell -File .t3/agent-stub.ps1",
-    "model": "stub",
     "confidence-threshold": 0.8,
-    "max-attempts": 3,
-    "parallel-rederivation": true
+    "max-attempts": 3
   }
 }
 ```
@@ -33,10 +31,12 @@ Provider selection happens from `.t3/config.json`:
 Field meaning:
 - `provider`: optional explicit provider kind
 - `endpoint`: URL for HTTP or shell command for exec
-- `model`: operator-visible model label
 - `confidence-threshold`: approval gate for resolved or re-derived diffs
 - `max-attempts`: retry budget persisted into `.meta.json`
-- `parallel-rederivation`: enables concurrent agent requests for independent non-clean patches while preserving canonical output order
+
+Agent execution semantics:
+- requests are executed sequentially in the current implementation
+- output ordering is deterministic because the update engine plans patches in dependency order
 
 ## Authentication
 

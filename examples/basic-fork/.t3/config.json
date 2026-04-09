@@ -4,15 +4,11 @@
   "agent": {
     "provider": "",
     "endpoint": "",
-    "model": "",
     "confidence-threshold": 0.8,
-    "max-attempts": 3,
-    "parallel-rederivation": true
+    "max-attempts": 3
   },
   "sandbox": {
-    "auto-spin": true,
-    "preview-command": "",
-    "cleanup-after-days": 7
+    "preview-command": ""
   },
   "hooks": {
     "pre-patch": "",
@@ -20,7 +16,5 @@
     "pre-update": "",
     "post-update": "",
     "on-conflict": ""
-  },
-  "commit-both-layers": true,
-  "gitignore-sandbox": true
+  }
 }

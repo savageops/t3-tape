@@ -51,9 +51,7 @@ describe('basic-fork filesystem contract', () => {
 describe('basic-fork config contract', () => {
   const topLevelChecks = [
     ['protocol', config.protocol, '0.1.0'],
-    ['upstream', config.upstream, 'https://github.com/example/upstream-app'],
-    ['commit-both-layers', config['commit-both-layers'], true],
-    ['gitignore-sandbox', config['gitignore-sandbox'], true]
+    ['upstream', config.upstream, 'https://github.com/example/upstream-app']
   ];
 
   for (const [label, actual, expected] of topLevelChecks) {
@@ -65,10 +63,8 @@ describe('basic-fork config contract', () => {
   const agentChecks = [
     ['provider', config.agent.provider, ''],
     ['endpoint', config.agent.endpoint, ''],
-    ['model', config.agent.model, ''],
     ['confidence-threshold', config.agent['confidence-threshold'], 0.8],
-    ['max-attempts', config.agent['max-attempts'], 3],
-    ['parallel-rederivation', config.agent['parallel-rederivation'], true]
+    ['max-attempts', config.agent['max-attempts'], 3]
   ];
 
   for (const [label, actual, expected] of agentChecks) {
@@ -78,9 +74,7 @@ describe('basic-fork config contract', () => {
   }
 
   const sandboxChecks = [
-    ['auto-spin', config.sandbox['auto-spin'], true],
-    ['preview-command', config.sandbox['preview-command'], ''],
-    ['cleanup-after-days', config.sandbox['cleanup-after-days'], 7]
+    ['preview-command', config.sandbox['preview-command'], '']
   ];
 
   for (const [label, actual, expected] of sandboxChecks) {

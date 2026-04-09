@@ -121,15 +121,11 @@ function normalizeConfig(rawConfig) {
     agent: {
       provider: resolveProviderKind(agent),
       endpoint: agent.endpoint ?? '',
-      model: agent.model ?? '',
       confidenceThreshold: agent['confidence-threshold'] ?? 0.8,
-      maxAttempts: agent['max-attempts'] ?? 3,
-      parallelRederivation: agent['parallel-rederivation'] !== false
+      maxAttempts: agent['max-attempts'] ?? 3
     },
     sandbox: {
-      autoSpin: sandbox['auto-spin'] !== false,
-      previewCommand: sandbox['preview-command'] ?? '',
-      cleanupAfterDays: sandbox['cleanup-after-days'] ?? 7
+      previewCommand: sandbox['preview-command'] ?? ''
     }
   };
 }

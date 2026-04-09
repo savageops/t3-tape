@@ -203,10 +203,8 @@ $configPath = Join-Path $fork '.t3\config.json'
 $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
 $config.agent.provider = 'exec'
 $config.agent.endpoint = $agentScriptPath
-$config.agent.model = 'stub'
 $config.agent.'confidence-threshold' = 0.8
 $config.agent.'max-attempts' = 3
-$config.agent.'parallel-rederivation' = $false
 $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath
 
 $headBefore = (Invoke-Git -Repo $fork -Arguments @('rev-parse', 'HEAD')).Trim()

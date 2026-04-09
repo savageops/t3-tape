@@ -186,9 +186,7 @@ function setConfigValue(fork: string, keyPath: string[], value: unknown): void {
 function configureExecAgent(fork: string, endpoint: string, threshold = 0.8): void {
   setConfigValue(fork, ['agent', 'provider'], 'exec');
   setConfigValue(fork, ['agent', 'endpoint'], endpoint);
-  setConfigValue(fork, ['agent', 'model'], 'stub');
   setConfigValue(fork, ['agent', 'confidence-threshold'], threshold);
-  setConfigValue(fork, ['agent', 'parallel-rederivation'], false);
 }
 
 function createExecAgentScript(tempDir: string, name: string, response: unknown): string {
