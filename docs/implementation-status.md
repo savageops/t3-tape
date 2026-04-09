@@ -16,7 +16,7 @@ This repo state was re-verified against the closeout gates after a stale executi
 - `pnpm install --frozen-lockfile`: passed after switching the launcher target packages to workspace protocol so `pnpm-lock.yaml` records the target `optionalDependencies` in the `packages/t3-tape-npm` importer.
 - `pnpm -C packages/t3-tape-npm build`: passed and emitted `dist/cli.js`, `dist/env.js`, `dist/platform.js`, and `dist/resolve.js`.
 - `pnpm -C packages/t3-tape-npm test`: passed with `Test Files 1 passed` and `Tests 9 passed`. Cross-platform optional package warnings are expected on a Windows host.
-- `cargo test -p t3-tape`: passed. Rust coverage still resolves to `7` init tests, `9` patch tests, `6` update tests, and `13` validate tests.
+- `cargo test -p t3-tape`: passed. Rust coverage now resolves to `7` init tests, `9` patch tests, `9` update tests, and `16` validate tests.
 - `cargo build --release -p t3-tape`: passed. The release binary still builds cleanly.
 - `target/release/t3-tape.exe init ...` then `target/release/t3-tape.exe validate --repo-root ...`: passed in a fresh temp git repo. `validate` returned `OK`.
 - `powershell -ExecutionPolicy Bypass -File scripts/e2e.ps1`: passed. Final output included `E2E_STATUS:` then `COMPLETE`.
@@ -51,12 +51,12 @@ T3 Tape does not ship:
 | `t3-tape patch import` | shipped | direct import plus deterministic clustering path for multi-file fixtures |
 | `t3-tape hooks print` | shipped | prints pre-commit, `.gitignore`, and `.gitattributes` snippets |
 | `t3-tape hooks install pre-commit` | shipped | optional hook installation with overwrite protection |
-| `t3-tape validate` | shipped | validates PatchMD-owned surfaces and tolerates foreign `.t3/reports/` |
+| `t3-tape validate` | shipped | validates PatchMD-owned surfaces, semantic meta parity, git-resolved refs, and tolerates foreign `.t3/reports/` |
 | `t3-tape validate --staged` | shipped | enforces the two-layer staged-write contract |
-| `t3-tape update --ref` | shipped | phases 0-7 through sandbox worktree and triage persistence |
+| `t3-tape update --ref` | shipped | phases 0-7 through sandbox worktree, dependency-aware staging, and triage persistence |
 | `t3-tape update --ci` | shipped | writes artifacts and exits `3` when non-clean patches remain |
 | `t3-tape triage` | shipped | human and JSON output from `.t3/triage.json` |
-| `t3-tape triage approve` | shipped | rewrites PatchMD state against the migrated upstream base |
+| `t3-tape triage approve` | shipped | rewrites approved patch state immediately and advances the global PatchMD base only on terminal cycle completion |
 | `t3-tape rederive` | shipped | forces intent-first re-derivation against the latest sandbox cycle |
 | `t3-tape export` | shipped | emits a compact markdown summary of customizations |
 

@@ -5,6 +5,7 @@ pub mod time;
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use crate::exit::RedtapeError;
 use paths::{ResolveOptions, ResolvedPaths};
@@ -57,11 +58,16 @@ pub fn initialize(request: InitRequest) -> Result<InitReport, RedtapeError> {
         schema::render_config(&upstream)?.as_bytes(),
         &mut report.created_files,
     )?;
-    ensure_file(
-        &report.paths.patch_md_path,
-        schema::build_patch_header(&upstream, &base_ref).as_bytes(),
-        &mut report.created_files,
-    )?;
+    if report.paths.patch_md_path.exists() {
+        ensure_file(&report.paths.patch_md_path, b"", &mut report.created_files)?;
+    } else {
+        let resolved_base_ref = resolve_base_ref(&report.paths.repo_root, &base_ref)?;
+        ensure_file(
+            &report.paths.patch_md_path,
+            schema::build_patch_header(&upstream, &resolved_base_ref).as_bytes(),
+            &mut report.created_files,
+        )?;
+    }
     ensure_file(
         &report.paths.migration_log_path,
         schema::empty_migration_log().as_bytes(),
@@ -74,6 +80,25 @@ pub fn initialize(request: InitRequest) -> Result<InitReport, RedtapeError> {
     )?;
 
     Ok(report)
+}
+
+fn resolve_base_ref(repo_root: &Path, base_ref: &str) -> Result<String, RedtapeError> {
+    let output = Command::new("git")
+        .args(["rev-parse", "--verify", &format!("{base_ref}^{{commit}}")])
+        .current_dir(repo_root)
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let detail = if stderr.is_empty() {
+            format!("base ref `{base_ref}` did not resolve to a commit")
+        } else {
+            stderr
+        };
+        return Err(RedtapeError::Usage(detail));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
 fn ensure_existing_directory(path: &Path, label: &str) -> Result<(), RedtapeError> {

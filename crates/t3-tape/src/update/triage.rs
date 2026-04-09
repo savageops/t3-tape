@@ -64,6 +64,8 @@ pub struct TriagePatch {
     #[serde(default)]
     pub unresolved: Vec<String>,
     #[serde(default)]
+    pub dependency_blockers: Vec<String>,
+    #[serde(default)]
     pub resolved_diff_path: Option<String>,
     #[serde(default)]
     pub notes_path: Option<String>,
@@ -172,11 +174,16 @@ pub fn render_human(summary: &TriageSummary) -> String {
             format!("{} (from {})", patch.triage_status, patch.detected_status)
         };
         lines.push(format!(
-            "{}\t{}\t{}{}",
+            "{}\t{}\t{}{}{}",
             patch.id,
             patch.title,
             status,
-            if patch.approved { "\tapproved" } else { "" }
+            if patch.approved { "\tapproved" } else { "" },
+            if patch.dependency_blockers.is_empty() {
+                String::new()
+            } else {
+                format!("\tblocked-by={}", patch.dependency_blockers.join(","))
+            }
         ));
     }
 

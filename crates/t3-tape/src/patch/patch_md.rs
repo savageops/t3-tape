@@ -8,6 +8,14 @@ pub struct PatchDocument {
     pub entries: Vec<PatchEntry>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PatchHeader {
+    pub project: String,
+    pub upstream: String,
+    pub base_ref: String,
+    pub protocol: String,
+}
+
 impl PatchDocument {
     pub fn find(&self, id: PatchId) -> Option<&PatchEntry> {
         self.entries.iter().find(|entry| entry.id == id)
@@ -133,6 +141,33 @@ pub fn append_entries(existing: &str, entries: &[PatchEntry]) -> String {
         rendered.push_str(&entry.render_block());
     }
     rendered
+}
+
+pub fn parse_header(header: &str) -> Result<PatchHeader, RedtapeError> {
+    let mut project = None;
+    let mut upstream = None;
+    let mut base_ref = None;
+    let mut protocol = None;
+
+    for line in header.lines() {
+        let trimmed = line.trim();
+        if let Some(value) = trimmed.strip_prefix("> project:") {
+            project = Some(value.trim().to_string());
+        } else if let Some(value) = trimmed.strip_prefix("> upstream:") {
+            upstream = Some(value.trim().to_string());
+        } else if let Some(value) = trimmed.strip_prefix("> base-ref:") {
+            base_ref = Some(value.trim().to_string());
+        } else if let Some(value) = trimmed.strip_prefix("> protocol:") {
+            protocol = Some(value.trim().to_string());
+        }
+    }
+
+    Ok(PatchHeader {
+        project: project.ok_or_else(|| missing_header_field("project"))?,
+        upstream: upstream.ok_or_else(|| missing_header_field("upstream"))?,
+        base_ref: base_ref.ok_or_else(|| missing_header_field("base-ref"))?,
+        protocol: protocol.ok_or_else(|| missing_header_field("protocol"))?,
+    })
 }
 
 fn parse_block(raw_block: &str) -> Result<PatchEntry, RedtapeError> {
@@ -342,6 +377,10 @@ fn missing_field(field: &str) -> RedtapeError {
 
 fn missing_section(section: &str) -> RedtapeError {
     RedtapeError::Validation(format!("missing required patch section: {section}"))
+}
+
+fn missing_header_field(field: &str) -> RedtapeError {
+    RedtapeError::Validation(format!("missing required patch header field: {field}"))
 }
 
 pub fn render_document(document: &PatchDocument) -> String {

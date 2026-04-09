@@ -59,12 +59,13 @@ Safety boundary:
 
 ### Phase 3: Clean Apply Attempt
 
-Each active patch is examined in canonical order.
+Each active patch is examined in dependency-respecting order.
 
 Primary classifications:
 - `CLEAN`
 - `CONFLICT`
 - `MISSING-SURFACE`
+- `BLOCKED`
 
 Supporting signal:
 - `merged-upstream-candidate`
@@ -73,6 +74,7 @@ How they are produced:
 - `MISSING-SURFACE`: a diff-referenced path is missing from the sandbox worktree
 - `CLEAN`: `git apply --check` succeeds in the sandbox worktree
 - `CONFLICT`: `git apply --check` fails for a present surface
+- `BLOCKED`: one or more required predecessor patches did not stage successfully, so the dependent patch is held back instead of being classified against an invalid partial state
 - `merged-upstream-candidate`: `git apply --reverse --check` succeeds when forward apply does not
 
 Artifacts persisted after triage:
@@ -111,7 +113,8 @@ Expected top-level shape:
 ```
 
 Ordering rules:
-- patch order follows `patch.md`
+- `requires` edges define execution order
+- original `patch.md` order is the deterministic tie-breaker for independent patches
 - human output groups counts in a stable order
 - identical inputs produce stable JSON ordering and stable stderr truncation
 
@@ -144,9 +147,10 @@ This is the differentiator of the protocol: the system can rebuild from intent w
 Resolved state is staged on the sandbox migration branch.
 
 Apply rules:
-- `CLEAN` and `pending-review` patches are applied in canonical patch order
+- `CLEAN` and `pending-review` patches are applied in dependency-respecting order
 - each successfully staged patch gets its own sandbox commit
 - the commit sha is recorded in `triage.json`
+- dependents whose required predecessors remain unresolved surface as `BLOCKED` plus `NEEDS-YOU` instead of staging against an invalid partial state
 
 Agent artifact directory:
 
@@ -172,12 +176,16 @@ Approval does all of the following:
 - extracts the staged sandbox commit diff for the selected patch
 - rewrites `.t3/patches/PATCH-001.diff`
 - updates `.t3/patches/PATCH-001.meta.json`
-- rewrites the root `> base-ref:` line in `.t3/patch.md`
 - updates the approved patch block to `active` unless the user already marked it `deprecated` or `merged-upstream`
 
 Approval does not:
 - reset or switch the current branch
 - auto-merge the sandbox branch into the operator's branch
+
+Global base advancement rule:
+- per-patch approval rewrites only the selected patch diff, meta, and triage approval bit
+- the root `patch.md` `> base-ref:` line advances only when the cycle becomes terminal
+- this keeps partial approval cycles honest: approved patches can point at the migrated upstream ref while the global header still describes the last fully completed migration base
 
 ## Migration Log
 

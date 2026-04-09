@@ -4,7 +4,7 @@ pub mod resolve;
 pub mod sandbox;
 pub mod triage;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -88,14 +88,12 @@ pub fn run_update(
         .into_iter()
         .filter(|entry| entry.status == "active")
         .collect::<Vec<_>>();
+    let planned_entries = plan_active_entries(active_entries)?;
 
     let mut materials = BTreeMap::<String, PatchMaterial>::new();
-    let mut patches = Vec::new();
-    for entry in active_entries {
+    for entry in &planned_entries {
         let material = load_patch_material(&paths, &entry)?;
-        let triage_patch = classify_patch(&sandbox, &material)?;
         materials.insert(material.entry.id.to_string(), material);
-        patches.push(triage_patch);
     }
 
     let mut summary = TriageSummary::new(
@@ -105,7 +103,7 @@ pub fn run_update(
         config.upstream.clone(),
         time::current_utc_rfc3339(),
         sandbox.summary(),
-        patches,
+        Vec::new(),
     );
 
     let resolution_context = ResolutionContext {
@@ -120,9 +118,7 @@ pub fn run_update(
         materials: &materials,
     };
 
-    resolve_non_clean_patches(&resolution_context, &mut summary)?;
-
-    apply_resolved_patches(&sandbox, &materials, &mut summary)?;
+    summary.patches = process_patches(&resolution_context, &planned_entries)?;
     maybe_run_preview(&config, &sandbox, &mut summary)?;
 
     triage::write(&sandbox.triage_path, &summary)?;
@@ -194,26 +190,32 @@ pub fn approve_patch(
     }
 
     let sandbox_worktree = PathBuf::from(&summary.sandbox.worktree_path);
-    let patch_record = summary
-        .find_patch_mut(&args.id)
-        .ok_or_else(|| RedtapeError::Usage(format!("unknown triage patch id: {}", args.id)))?;
+    let (commit, confidence, scope_update) = {
+        let patch_record = summary
+            .find_patch_mut(&args.id)
+            .ok_or_else(|| RedtapeError::Usage(format!("unknown triage patch id: {}", args.id)))?;
 
-    if !matches!(
-        patch_record.triage_status.as_str(),
-        "CLEAN" | "pending-review"
-    ) {
-        return Err(RedtapeError::Blocked(format!(
-            "patch {} is not ready for approval (status: {})",
-            patch_record.id, patch_record.triage_status
-        )));
-    }
+        if !matches!(
+            patch_record.triage_status.as_str(),
+            "CLEAN" | "pending-review"
+        ) {
+            return Err(RedtapeError::Blocked(format!(
+                "patch {} is not ready for approval (status: {})",
+                patch_record.id, patch_record.triage_status
+            )));
+        }
 
-    let commit = patch_record.apply_commit.clone().ok_or_else(|| {
-        RedtapeError::Blocked(format!(
-            "patch {} has no staged sandbox commit to approve",
-            patch_record.id
-        ))
-    })?;
+        let commit = patch_record.apply_commit.clone().ok_or_else(|| {
+            RedtapeError::Blocked(format!(
+                "patch {} has no staged sandbox commit to approve",
+                patch_record.id
+            ))
+        })?;
+        let confidence = patch_record.confidence.unwrap_or(1.0);
+        let scope_update = patch_record.scope_update.clone();
+        patch_record.approved = true;
+        (commit, confidence, scope_update)
+    };
 
     let patch_id: PatchId = args.id.parse()?;
     let diff_text = git::show_commit_patch(&sandbox_worktree, &commit)?;
@@ -225,22 +227,14 @@ pub fn approve_patch(
     let mut meta = patch::read_meta_for_id(&paths, patch_id)?.ok_or_else(|| {
         RedtapeError::Validation(format!("missing meta for {} during approval", args.id))
     })?;
-    meta.base_ref = to_ref_resolved.clone();
-    meta.current_ref = to_ref_resolved.clone();
-    meta.apply_confidence = patch_record.confidence.unwrap_or(1.0);
-    meta.last_applied = time::current_utc_rfc3339();
-    meta.last_checked = meta.last_applied.clone();
-    write_meta(&patch::meta_path(&paths, patch_id), &meta)?;
-
     let (_, mut document) = patch::read_document(&paths)?;
-    document.header = patch::patch_md::rewrite_header_base_ref(&document.header, &to_ref_resolved);
     let mut final_status = "active".to_string();
     for entry in &mut document.entries {
         if entry.id == patch_id {
             if !matches!(entry.status.as_str(), "deprecated" | "merged-upstream") {
                 entry.status = "active".to_string();
             }
-            if let Some(scope_update) = &patch_record.scope_update {
+            if let Some(scope_update) = &scope_update {
                 entry.scope_files = scope_update.files.clone();
                 entry.scope_components = scope_update.components.clone();
             }
@@ -248,14 +242,25 @@ pub fn approve_patch(
             break;
         }
     }
+
+    let cycle_complete = summary.all_terminal();
+
+    meta.base_ref = to_ref_resolved.clone();
+    meta.current_ref = to_ref_resolved.clone();
+    meta.apply_confidence = confidence;
+    meta.last_applied = time::current_utc_rfc3339();
+    meta.last_checked = meta.last_applied.clone();
+    write_meta(&patch::meta_path(&paths, patch_id), &meta)?;
+
+    if cycle_complete {
+        document.header =
+            patch::patch_md::rewrite_header_base_ref(&document.header, &to_ref_resolved);
+    }
     let rendered = patch::patch_md::render_document(&document);
     atomic::write_file_atomic(&paths.patch_md_path, rendered.as_bytes())?;
 
-    patch_record.approved = true;
     triage::write(&paths.triage_path, &summary)?;
     triage::write(&sandbox_triage_path, &summary)?;
-
-    let cycle_complete = summary.all_terminal();
     if cycle_complete {
         append_complete_log(&paths, &summary)?;
         run_hook(
@@ -403,6 +408,7 @@ fn classify_patch(
         agent_mode: None,
         notes: None,
         unresolved: Vec::new(),
+        dependency_blockers: Vec::new(),
         resolved_diff_path: None,
         notes_path: None,
         raw_response_path: None,
@@ -412,88 +418,97 @@ fn classify_patch(
     })
 }
 
-fn resolve_non_clean_patches(
+fn process_patches(
     context: &ResolutionContext<'_>,
-    summary: &mut TriageSummary,
-) -> Result<(), RedtapeError> {
-    for patch in &mut summary.patches {
-        if patch.detected_status == "CLEAN" {
+    planned_entries: &[PatchEntry],
+) -> Result<Vec<TriagePatch>, RedtapeError> {
+    let mut patches = Vec::new();
+
+    for entry in planned_entries {
+        let blockers = unresolved_dependencies(&patches, &entry.requires);
+        let mut patch = if blockers.is_empty() {
+            let material = context.materials.get(&entry.id.to_string()).ok_or_else(|| {
+                RedtapeError::Validation(format!("missing patch material for {}", entry.id))
+            })?;
+            classify_patch(context.sandbox, material)?
+        } else {
+            blocked_patch(entry, blockers)
+        };
+
+        if patch.detected_status == "BLOCKED" {
+            patches.push(patch);
             continue;
         }
 
-        if !context.config.agent.is_configured() {
-            patch.triage_status = "NEEDS-YOU".to_string();
-            patch.notes = Some("agent not configured".to_string());
-            continue;
-        }
-
-        let patch_id: PatchId = patch.id.parse()?;
-        let meta = patch::read_meta_for_id(context.paths, patch_id)?.ok_or_else(|| {
-            RedtapeError::Validation(format!("missing meta for {} during update", patch.id))
-        })?;
-        if meta.agent_attempts >= u32::from(context.config.agent.max_attempts) {
-            patch.triage_status = "NEEDS-YOU".to_string();
-            patch.notes = Some(format!("agent attempt budget exhausted for {}", patch.id));
-            continue;
-        }
-
-        increment_agent_attempts(context.paths, patch_id)?;
         let material = context.materials.get(&patch.id).ok_or_else(|| {
             RedtapeError::Validation(format!("missing patch material for {}", patch.id))
         })?;
-        let new_source = load_new_source(&context.sandbox.worktree_path, &material.changed_paths)?;
-        let upstream_diff = diff_between_refs(
-            &context.paths.repo_root,
-            context.from_ref,
-            context.to_ref_resolved,
-            &material.changed_paths,
-        )?;
+        if patch.detected_status != "CLEAN" {
+            if !context.config.agent.is_configured() {
+                patch.triage_status = "NEEDS-YOU".to_string();
+                patch.notes = Some("agent not configured".to_string());
+                patches.push(patch);
+                continue;
+            }
 
-        let resolution = match patch.detected_status.as_str() {
-            "CONFLICT" => resolve::resolve_conflict(
-                &context.config.agent,
-                context.sandbox,
-                patch,
-                resolve::ConflictResolutionInput {
-                    intent: &material.entry.intent,
-                    behavior_assertions: &material.entry.behavior_assertions,
-                    original_diff: &material.raw_diff,
-                    upstream_diff: &upstream_diff,
-                    new_source: &new_source,
-                    threshold: context.threshold,
-                },
-            ),
-            _ => resolve::rederive(
-                &context.config.agent,
-                context.sandbox,
-                patch,
-                resolve::RederivationInput {
-                    intent: &material.entry.intent,
-                    behavior_assertions: &material.entry.behavior_assertions,
-                    new_source: &new_source,
-                    surface_hint: &material.entry.surface,
-                    threshold: context.threshold,
-                },
-            ),
-        };
+            let patch_id: PatchId = patch.id.parse()?;
+            let meta = patch::read_meta_for_id(context.paths, patch_id)?.ok_or_else(|| {
+                RedtapeError::Validation(format!("missing meta for {} during update", patch.id))
+            })?;
+            if meta.agent_attempts >= u32::from(context.config.agent.max_attempts) {
+                patch.triage_status = "NEEDS-YOU".to_string();
+                patch.notes = Some(format!("agent attempt budget exhausted for {}", patch.id));
+                patches.push(patch);
+                continue;
+            }
 
-        if let Err(err) = resolution {
-            patch.triage_status = "NEEDS-YOU".to_string();
-            patch.notes = Some(err.to_string());
+            increment_agent_attempts(context.paths, patch_id)?;
+            let new_source =
+                load_new_source(&context.sandbox.worktree_path, &material.changed_paths)?;
+            let upstream_diff = diff_between_refs(
+                &context.paths.repo_root,
+                context.from_ref,
+                context.to_ref_resolved,
+                &material.changed_paths,
+            )?;
+
+            let resolution = match patch.detected_status.as_str() {
+                "CONFLICT" => resolve::resolve_conflict(
+                    &context.config.agent,
+                    context.sandbox,
+                    &mut patch,
+                    resolve::ConflictResolutionInput {
+                        intent: &material.entry.intent,
+                        behavior_assertions: &material.entry.behavior_assertions,
+                        original_diff: &material.raw_diff,
+                        upstream_diff: &upstream_diff,
+                        new_source: &new_source,
+                        threshold: context.threshold,
+                    },
+                ),
+                _ => resolve::rederive(
+                    &context.config.agent,
+                    context.sandbox,
+                    &mut patch,
+                    resolve::RederivationInput {
+                        intent: &material.entry.intent,
+                        behavior_assertions: &material.entry.behavior_assertions,
+                        new_source: &new_source,
+                        surface_hint: &material.entry.surface,
+                        threshold: context.threshold,
+                    },
+                ),
+            };
+
+            if let Err(err) = resolution {
+                patch.triage_status = "NEEDS-YOU".to_string();
+                patch.notes = Some(err.to_string());
+            }
         }
-    }
 
-    Ok(())
-}
-
-fn apply_resolved_patches(
-    sandbox: &SandboxContext,
-    materials: &BTreeMap<String, PatchMaterial>,
-    summary: &mut TriageSummary,
-) -> Result<(), RedtapeError> {
-    for patch in &mut summary.patches {
         let maybe_diff = match patch.triage_status.as_str() {
-            "CLEAN" => materials
+            "CLEAN" => context
+                .materials
                 .get(&patch.id)
                 .map(|material| material.diff_path.clone()),
             "pending-review" => patch.resolved_diff_path.as_ref().map(PathBuf::from),
@@ -501,18 +516,25 @@ fn apply_resolved_patches(
         };
 
         let Some(diff_path) = maybe_diff else {
+            patches.push(patch);
             continue;
         };
 
-        let commit =
-            apply::apply_and_commit(&sandbox.worktree_path, &diff_path, &patch.id, &patch.title)?;
+        let commit = apply::apply_and_commit(
+            &context.sandbox.worktree_path,
+            &diff_path,
+            &patch.id,
+            &patch.title,
+        )?;
         patch.apply_commit = Some(commit);
         if patch.confidence.is_none() {
             patch.confidence = Some(1.0);
         }
+
+        patches.push(patch);
     }
 
-    Ok(())
+    Ok(patches)
 }
 
 fn maybe_run_preview(
@@ -795,5 +817,114 @@ fn ensure_trailing_newline(value: &str) -> String {
         value.to_string()
     } else {
         format!("{value}\n")
+    }
+}
+
+fn plan_active_entries(entries: Vec<PatchEntry>) -> Result<Vec<PatchEntry>, RedtapeError> {
+    let mut entries_by_id = HashMap::<String, PatchEntry>::new();
+    let mut order_index = HashMap::<String, usize>::new();
+    let mut indegree = HashMap::<String, usize>::new();
+    let mut dependents = HashMap::<String, Vec<String>>::new();
+
+    for (index, entry) in entries.into_iter().enumerate() {
+        let id = entry.id.to_string();
+        order_index.insert(id.clone(), index);
+        indegree.insert(id.clone(), 0);
+        dependents.insert(id.clone(), Vec::new());
+        entries_by_id.insert(id, entry);
+    }
+
+    let ids = entries_by_id.keys().cloned().collect::<Vec<_>>();
+    for id in &ids {
+        let entry = entries_by_id.get(id).expect("entry should exist");
+        for required in &entry.requires {
+            if !entries_by_id.contains_key(required) {
+                return Err(RedtapeError::Validation(format!(
+                    "update planning missing required patch `{required}` for {}",
+                    entry.id
+                )));
+            }
+            *indegree.get_mut(id).expect("indegree should exist") += 1;
+            dependents
+                .get_mut(required)
+                .expect("dependent list should exist")
+                .push(id.clone());
+        }
+    }
+
+    let mut ready = indegree
+        .iter()
+        .filter_map(|(id, degree)| (*degree == 0).then_some(id.clone()))
+        .collect::<Vec<_>>();
+    ready.sort_by_key(|id| order_index.get(id).copied().unwrap_or(usize::MAX));
+
+    let mut planned = Vec::new();
+    while let Some(id) = ready.first().cloned() {
+        ready.remove(0);
+        let entry = entries_by_id
+            .remove(&id)
+            .expect("ready patch should still exist");
+        planned.push(entry);
+
+        if let Some(children) = dependents.get(&id) {
+            for child in children {
+                let degree = indegree
+                    .get_mut(child)
+                    .expect("child indegree should exist");
+                *degree -= 1;
+                if *degree == 0 {
+                    ready.push(child.clone());
+                }
+            }
+        }
+        ready.sort_by_key(|candidate| order_index.get(candidate).copied().unwrap_or(usize::MAX));
+    }
+
+    if !entries_by_id.is_empty() {
+        let remaining = entries_by_id.keys().cloned().collect::<Vec<_>>().join(", ");
+        return Err(RedtapeError::Validation(format!(
+            "dependency planning could not order active patches: {remaining}"
+        )));
+    }
+
+    Ok(planned)
+}
+
+fn unresolved_dependencies(patches: &[TriagePatch], requires: &[String]) -> Vec<String> {
+    requires
+        .iter()
+        .filter(|required| {
+            !patches.iter().any(|patch| {
+                &patch.id == *required
+                    && matches!(patch.triage_status.as_str(), "CLEAN" | "pending-review")
+                    && patch.apply_commit.is_some()
+            })
+        })
+        .cloned()
+        .collect()
+}
+
+fn blocked_patch(entry: &PatchEntry, blockers: Vec<String>) -> TriagePatch {
+    TriagePatch {
+        id: entry.id.to_string(),
+        title: entry.title.clone(),
+        detected_status: "BLOCKED".to_string(),
+        triage_status: "NEEDS-YOU".to_string(),
+        merged_upstream_candidate: false,
+        apply_stderr: String::new(),
+        confidence: None,
+        agent_mode: None,
+        notes: Some(format!(
+            "blocked by unresolved dependencies: {}",
+            blockers.join(", ")
+        )),
+        unresolved: blockers.clone(),
+        dependency_blockers: blockers,
+        resolved_diff_path: None,
+        notes_path: None,
+        raw_response_path: None,
+        apply_commit: None,
+        approved: false,
+        scope_update: None,
     }
 }

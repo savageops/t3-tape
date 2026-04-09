@@ -190,7 +190,7 @@ Approval:
 
 - rewrites `.t3/patches/PATCH-001.diff`
 - updates `.t3/patches/PATCH-001.meta.json`
-- rewrites the root `> base-ref:` in `.t3/patch.md`
+- advances the root `> base-ref:` in `.t3/patch.md` only when the cycle becomes terminal
 - keeps the current branch untouched
 - does not auto-merge the sandbox branch into your working branch
 

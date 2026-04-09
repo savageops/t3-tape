@@ -180,6 +180,33 @@ fn configure_preview_command(fork_root: &Path, command: &str) {
     write_config_value(fork_root, &["sandbox", "preview-command"], json!(command));
 }
 
+fn set_patch_requires(fork_root: &Path, patch_id: &str, requires: &[&str]) {
+    let patch_md_path = fork_root.join(".t3/patch.md");
+    let current = fs::read_to_string(&patch_md_path).unwrap();
+    let marker = format!("## [{patch_id}]");
+    let start = current.find(&marker).unwrap();
+    let end = current[start + marker.len()..]
+        .find("\n## [")
+        .map(|offset| start + marker.len() + offset)
+        .unwrap_or(current.len());
+    let block = &current[start..end];
+    let updated_block = block.replacen(
+        "- **requires:** []",
+        &format!("- **requires:** [{}]", requires.join(", ")),
+        1,
+    );
+    let updated = format!("{}{}{}", &current[..start], updated_block, &current[end..]);
+    fs::write(&patch_md_path, updated).unwrap();
+}
+
+fn patch_md_base_ref(fork_root: &Path) -> String {
+    fs::read_to_string(fork_root.join(".t3/patch.md"))
+        .unwrap()
+        .lines()
+        .find_map(|line| line.strip_prefix("> base-ref: ").map(str::to_string))
+        .unwrap()
+}
+
 fn latest_sandbox_dir(fork_root: &Path) -> PathBuf {
     let mut dirs = fs::read_dir(fork_root.join(".t3/sandbox"))
         .unwrap()
@@ -639,4 +666,152 @@ fn rederive_promotes_missing_surface_to_pending_review() {
             .len()
             > 6
     );
+}
+
+#[test]
+fn update_applies_dependencies_in_requires_order() {
+    let pair = RepoPair::new();
+    run_init(&pair.fork, &pair.upstream);
+    add_patch_and_commit(
+        &pair.fork,
+        "src/app.txt",
+        "alpha\nfoundation\n",
+        "base-patch",
+        "Apply the foundation change before dependent customization.",
+    );
+    add_patch_and_commit(
+        &pair.fork,
+        "src/app.txt",
+        "alpha\nfeature\n",
+        "dependent-patch",
+        "Apply after the foundation patch.",
+    );
+    set_patch_requires(&pair.fork, "PATCH-002", &["PATCH-001"]);
+
+    let to_ref = commit_change(&pair.upstream, "README.md", "# upstream\n", "docs only");
+
+    t3_tape_command()
+        .current_dir(&pair.fork)
+        .args(["update", "--ref", &to_ref])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PATCH-002\tdependent-patch\tCLEAN"));
+
+    let triage = read_json(&pair.fork.join(".t3/triage.json"));
+    assert_eq!(triage["patches"][0]["id"], "PATCH-001");
+    assert_eq!(triage["patches"][0]["detected-status"], "CLEAN");
+    assert_eq!(triage["patches"][1]["id"], "PATCH-002");
+    assert_eq!(triage["patches"][1]["detected-status"], "CLEAN");
+    assert_eq!(triage["patches"][1]["triage-status"], "CLEAN");
+    assert_eq!(triage["patches"][1]["dependency-blockers"], json!([]));
+    assert!(triage["patches"][1]["apply-commit"].as_str().unwrap().len() > 6);
+}
+
+#[test]
+fn update_blocks_dependent_patch_when_required_patch_is_unresolved() {
+    let pair = RepoPair::new();
+    run_init(&pair.fork, &pair.upstream);
+    add_patch_and_commit(
+        &pair.fork,
+        "src/app.txt",
+        "alpha\nfoundation\n",
+        "base-patch",
+        "Apply the foundation change before dependent customization.",
+    );
+    add_patch_and_commit(
+        &pair.fork,
+        "src/app.txt",
+        "alpha\nfeature\n",
+        "dependent-patch",
+        "Apply after the foundation patch.",
+    );
+    set_patch_requires(&pair.fork, "PATCH-002", &["PATCH-001"]);
+
+    let to_ref = commit_change(
+        &pair.upstream,
+        "src/app.txt",
+        "alpha\nupstream\n",
+        "rewrite dependent surface",
+    );
+
+    t3_tape_command()
+        .current_dir(&pair.fork)
+        .args(["update", "--ref", &to_ref, "--ci"])
+        .assert()
+        .failure()
+        .code(3)
+        .stdout(predicate::str::contains("BLOCKED"));
+
+    let triage = read_json(&pair.fork.join(".t3/triage.json"));
+    assert_eq!(triage["patches"][0]["detected-status"], "CONFLICT");
+    assert_eq!(triage["patches"][0]["triage-status"], "NEEDS-YOU");
+    assert_eq!(triage["patches"][1]["detected-status"], "BLOCKED");
+    assert_eq!(triage["patches"][1]["triage-status"], "NEEDS-YOU");
+    assert_eq!(
+        triage["patches"][1]["dependency-blockers"],
+        json!(["PATCH-001"])
+    );
+    assert!(triage["patches"][1]["apply-commit"].is_null());
+}
+
+#[test]
+fn partial_approval_keeps_global_base_until_cycle_completion() {
+    let pair = RepoPair::new();
+    run_init(&pair.fork, &pair.upstream);
+    add_patch_and_commit(
+        &pair.fork,
+        "src/app.txt",
+        "alpha\npatched\nbase\n",
+        "first-clean-patch",
+        "Keep the main file customization active.",
+    );
+    add_patch_and_commit(
+        &pair.fork,
+        "src/app.txt",
+        "alpha\npatched\nbase\nextra\n",
+        "second-clean-patch",
+        "Keep the follow-up customization active.",
+    );
+
+    let base_before_update = patch_md_base_ref(&pair.fork);
+    let to_ref = commit_change(&pair.upstream, "README.md", "# upstream\n", "docs only");
+
+    t3_tape_command()
+        .current_dir(&pair.fork)
+        .args(["update", "--ref", &to_ref])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PATCH-002\tsecond-clean-patch\tCLEAN"));
+
+    t3_tape_command()
+        .current_dir(&pair.fork)
+        .args(["triage", "approve", "PATCH-001"])
+        .assert()
+        .success()
+        .stdout(predicate::eq("PATCH-001\tactive\n"));
+
+    assert_eq!(patch_md_base_ref(&pair.fork), base_before_update);
+    let meta_one = read_json(&pair.fork.join(".t3/patches/PATCH-001.meta.json"));
+    let meta_two = read_json(&pair.fork.join(".t3/patches/PATCH-002.meta.json"));
+    assert_eq!(meta_one["base-ref"], to_ref);
+    assert_eq!(meta_one["current-ref"], to_ref);
+    assert_ne!(meta_two["base-ref"], json!(to_ref));
+
+    t3_tape_command()
+        .current_dir(&pair.fork)
+        .args(["validate"])
+        .assert()
+        .success()
+        .stdout(predicate::eq("OK\n"));
+
+    t3_tape_command()
+        .current_dir(&pair.fork)
+        .args(["triage", "approve", "PATCH-002"])
+        .assert()
+        .success()
+        .stdout(predicate::eq("PATCH-002\tactive\tCOMPLETE\n"));
+
+    assert_eq!(patch_md_base_ref(&pair.fork), to_ref);
+    let migration_log = fs::read_to_string(pair.fork.join(".t3/migration.log")).unwrap();
+    assert_eq!(migration_log.matches("status:   COMPLETE").count(), 1);
 }

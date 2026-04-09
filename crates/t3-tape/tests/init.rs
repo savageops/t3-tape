@@ -17,6 +17,43 @@ fn git_init(path: &Path) {
         .status()
         .expect("git init should run");
     assert!(status.success(), "git init should succeed");
+
+    for args in [
+        ["config", "user.name", "Test User"],
+        ["config", "user.email", "test@example.com"],
+        ["config", "core.autocrlf", "false"],
+    ] {
+        let status = Command::new("git")
+            .args(args)
+            .current_dir(path)
+            .status()
+            .expect("git config should run");
+        assert!(status.success(), "git config should succeed");
+    }
+
+    fs::write(path.join("README.md"), "baseline\n").unwrap();
+    let add_status = Command::new("git")
+        .args(["add", "."])
+        .current_dir(path)
+        .status()
+        .expect("git add should run");
+    assert!(add_status.success(), "git add should succeed");
+    let commit_status = Command::new("git")
+        .args(["commit", "-m", "baseline", "--quiet"])
+        .current_dir(path)
+        .status()
+        .expect("git commit should run");
+    assert!(commit_status.success(), "git commit should succeed");
+}
+
+fn git_head(path: &Path) -> String {
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(path)
+        .output()
+        .expect("git rev-parse should run");
+    assert!(output.status.success(), "git rev-parse should succeed");
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
 
 #[test]
@@ -86,7 +123,7 @@ fn init_creates_expected_tree() {
     let patch_md = fs::read_to_string(state_dir.child("patch.md").path()).unwrap();
     assert!(patch_md.contains("# PatchMD"));
     assert!(patch_md.contains("> project: upstream"));
-    assert!(patch_md.contains("> base-ref: HEAD"));
+    assert!(patch_md.contains(&format!("> base-ref: {}", git_head(temp.path()))));
 
     let triage = fs::read_to_string(state_dir.child("triage.json").path()).unwrap();
     assert_eq!(triage, "{}\n");
@@ -156,6 +193,7 @@ fn init_respects_repo_root_override() {
     let runner = temp.child("runner");
     project_root.create_dir_all().unwrap();
     runner.create_dir_all().unwrap();
+    git_init(project_root.path());
 
     t3_tape_command()
         .current_dir(runner.path())
@@ -199,6 +237,7 @@ fn init_respects_state_dir_override() {
 fn init_refuses_to_overwrite_non_empty_files() {
     let temp = assert_fs::TempDir::new().unwrap();
     let state_dir = temp.child(".t3");
+    git_init(temp.path());
     state_dir.create_dir_all().unwrap();
     state_dir.child("patches").create_dir_all().unwrap();
     state_dir.child("sandbox").create_dir_all().unwrap();

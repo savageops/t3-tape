@@ -150,7 +150,8 @@ Minimum required keys:
 
 Semantics:
 - `base-ref` and `current-ref` start at the fork head used when the patch was recorded
-- both values are rewritten to the approved migrated upstream ref on successful approval
+- different patches can legitimately carry different recorded refs before an update cycle completes
+- both values are rewritten to the approved migrated upstream ref when that patch is approved
 - `agent-attempts` increments when T3 Tape actually makes a conflict-resolution or re-derivation request
 - unknown keys are tolerated but must not break canonical keys
 
@@ -196,13 +197,23 @@ This gives T3 Tape a stable signal about what surface was originally customized 
 It checks:
 - required PatchMD-owned files exist
 - `config.json` parses
+- `patch.md` header fields parse and the stored `base-ref` resolves in git
 - patch ids are unique
 - required `patch.md` sections exist
 - matching diff and meta files exist
 - status values are valid
+- `behavior-assertions` in meta match the registry entry
+- `surface-hash` in meta matches the recomputed preimage signature from the stored diff
+- per-patch `base-ref` and `current-ref` resolve in git and stay in sync
+- triage-aware ref checks apply when the current update cycle makes a target ref knowable
 - dependencies reference real patches
 - dependency graph is acyclic
 - `triage.json`, when present, parses as the current schema
+
+Cycle-aware ref rules:
+- without a live triage cycle, T3 Tape validates that refs are real and internally consistent without assuming every patch shares one recorded ref
+- during an open triage cycle, approved patches must point at the cycle target ref while unapproved patches may still point at their historical recorded refs
+- once the triage cycle is terminal, the root `patch.md` header and all approved patch refs must agree on the migrated upstream ref
 
 Special tolerances:
 - missing `.t3/triage.json` before the first update cycle is allowed

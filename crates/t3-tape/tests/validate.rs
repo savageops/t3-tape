@@ -166,6 +166,116 @@ fn validate_fails_when_meta_fields_drift() {
 }
 
 #[test]
+fn validate_fails_when_header_and_meta_refs_do_not_resolve() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let tracked = seed_repo(&temp);
+    run_init(&temp);
+    add_patch(
+        &temp,
+        &tracked,
+        "ref-drift",
+        "Exercise unresolved ref validation.",
+    );
+
+    let patch_md = patch_md_path(&temp);
+    let current_patch_md = fs::read_to_string(&patch_md).unwrap();
+    let updated_patch_md =
+        current_patch_md.replacen("> base-ref: ", "> base-ref: broken-header-ref-", 1);
+    fs::write(&patch_md, updated_patch_md).unwrap();
+
+    let path = meta_path(&temp, "PATCH-001");
+    let mut meta: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    meta["base-ref"] = Value::String("broken-meta-base-ref".to_string());
+    meta["current-ref"] = Value::String("broken-meta-current-ref".to_string());
+    fs::write(&path, serde_json::to_string_pretty(&meta).unwrap() + "\n").unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args(["validate"])
+        .assert()
+        .failure()
+        .code(2)
+        .stdout(predicate::str::contains(
+            "patch.md header base-ref does not resolve in git",
+        ))
+        .stdout(predicate::str::contains(
+            "meta current-ref does not resolve in git",
+        ));
+
+    let output = t3_tape_command()
+        .current_dir(temp.path())
+        .args(["--json", "validate"])
+        .assert()
+        .failure()
+        .code(2)
+        .get_output()
+        .stdout
+        .clone();
+    let report: Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(report["status"], "error");
+    assert!(report["errors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|entry| entry
+            .as_str()
+            .unwrap()
+            .contains("patch.md header base-ref does not resolve in git")));
+}
+
+#[test]
+fn validate_fails_when_behavior_assertions_drift() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let tracked = seed_repo(&temp);
+    run_init(&temp);
+    add_patch(
+        &temp,
+        &tracked,
+        "assertion-drift",
+        "Exercise behavior assertion validation.",
+    );
+
+    let path = meta_path(&temp, "PATCH-001");
+    let mut meta: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    meta["behavior-assertions"] = serde_json::json!(["different behavior"]);
+    fs::write(&path, serde_json::to_string_pretty(&meta).unwrap() + "\n").unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args(["validate"])
+        .assert()
+        .failure()
+        .code(2)
+        .stdout(predicate::str::contains("meta behavior-assertions mismatch"));
+}
+
+#[test]
+fn validate_fails_when_surface_hash_drifts() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let tracked = seed_repo(&temp);
+    run_init(&temp);
+    add_patch(
+        &temp,
+        &tracked,
+        "surface-hash-drift",
+        "Exercise surface hash validation.",
+    );
+
+    let path = meta_path(&temp, "PATCH-001");
+    let mut meta: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    meta["surface-hash"] = Value::String("deadbeef".to_string());
+    fs::write(&path, serde_json::to_string_pretty(&meta).unwrap() + "\n").unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args(["validate"])
+        .assert()
+        .failure()
+        .code(2)
+        .stdout(predicate::str::contains("meta surface-hash mismatch"));
+}
+
+#[test]
 fn validate_fails_when_status_is_unknown() {
     let temp = assert_fs::TempDir::new().unwrap();
     let tracked = seed_repo(&temp);
