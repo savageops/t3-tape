@@ -66,7 +66,7 @@ fn update_fails_when_state_lock_held() {
     let pair = RepoPair::new();
     run_init(&pair.fork, &pair.upstream);
 
-    let lock_path = pair.fork.join(".t3/state.lock");
+    let lock_path = pair.fork.join(".t3/patch/state.lock");
     if let Some(parent) = lock_path.parent() {
         fs::create_dir_all(parent).unwrap();
     }
@@ -177,7 +177,7 @@ fn read_json(path: &Path) -> Value {
 }
 
 fn write_config_value(fork_root: &Path, key_path: &[&str], value: Value) {
-    let config_path = fork_root.join(".t3/config.json");
+    let config_path = fork_root.join(".t3/patch/config.json");
     let mut config: Value =
         serde_json::from_str(&fs::read_to_string(&config_path).unwrap()).unwrap();
     let mut current = &mut config;
@@ -234,7 +234,7 @@ fn patch_md_base_ref(fork_root: &Path) -> String {
 }
 
 fn latest_sandbox_dir(fork_root: &Path) -> PathBuf {
-    let mut dirs = fs::read_dir(fork_root.join(".t3/sandbox"))
+    let mut dirs = fs::read_dir(fork_root.join(".t3/patch/sandbox"))
         .unwrap()
         .filter_map(|entry| entry.ok())
         .filter(|entry| entry.path().is_dir())
@@ -320,7 +320,7 @@ fn update_clean_triage_persists_artifacts_and_preserves_head() {
 
     assert_eq!(git_output(&pair.fork, &["rev-parse", "HEAD"]), head_before);
 
-    let latest_triage_path = pair.fork.join(".t3/triage.json");
+    let latest_triage_path = pair.fork.join(".t3/patch/triage.json");
     let persisted = read_json(&latest_triage_path);
     let sandbox_triage = read_json(&latest_sandbox_dir(&pair.fork).join("triage.json"));
     assert_eq!(persisted, sandbox_triage);
@@ -338,7 +338,7 @@ fn update_clean_triage_persists_artifacts_and_preserves_head() {
     let triage_json: Value = serde_json::from_slice(&triage_output).unwrap();
     assert_eq!(triage_json, persisted);
 
-    let migration_log = fs::read_to_string(pair.fork.join(".t3/migration.log")).unwrap();
+    let migration_log = fs::read_to_string(pair.fork.join(".t3/patch/migration.log")).unwrap();
     assert!(migration_log.contains("STARTED"));
     assert!(migration_log.contains("TRIAGED"));
 }
@@ -373,7 +373,7 @@ fn update_ci_exits_three_on_conflict_and_persists_triage() {
 
     assert_eq!(git_output(&pair.fork, &["rev-parse", "HEAD"]), head_before);
 
-    let persisted = read_json(&pair.fork.join(".t3/triage.json"));
+    let persisted = read_json(&pair.fork.join(".t3/patch/triage.json"));
     assert_eq!(persisted["patches"][0]["detected-status"], "CONFLICT");
     assert_eq!(persisted["patches"][0]["triage-status"], "NEEDS-YOU");
 
@@ -463,7 +463,7 @@ fn update_with_exec_agent_stages_pending_review_and_approval_rewrites_state() {
     );
 
     let diff_before =
-        fs::read_to_string(pair.fork.join(".t3/patches/PATCH-001.diff")).unwrap();
+        fs::read_to_string(pair.fork.join(".t3/patch/patches/PATCH-001.diff")).unwrap();
     let head_before = git_output(&pair.fork, &["rev-parse", "HEAD"]);
     let to_ref = commit_change(
         &pair.upstream,
@@ -491,7 +491,7 @@ fn update_with_exec_agent_stages_pending_review_and_approval_rewrites_state() {
         .success()
         .stdout(predicate::str::contains("pending-review"));
 
-    let triage_path = pair.fork.join(".t3/triage.json");
+    let triage_path = pair.fork.join(".t3/patch/triage.json");
     let triage_before_approval = read_json(&triage_path);
     assert_eq!(
         triage_before_approval["patches"][0]["triage-status"],
@@ -537,12 +537,12 @@ fn update_with_exec_agent_stages_pending_review_and_approval_rewrites_state() {
 
     assert_eq!(git_output(&pair.fork, &["rev-parse", "HEAD"]), head_before);
 
-    let diff_after = fs::read_to_string(pair.fork.join(".t3/patches/PATCH-001.diff")).unwrap();
+    let diff_after = fs::read_to_string(pair.fork.join(".t3/patch/patches/PATCH-001.diff")).unwrap();
     assert_ne!(diff_before, diff_after);
     assert!(diff_after.contains("+patched"));
     assert!(diff_after.contains("-upstream"));
 
-    let meta = read_json(&pair.fork.join(".t3/patches/PATCH-001.meta.json"));
+    let meta = read_json(&pair.fork.join(".t3/patch/patches/PATCH-001.meta.json"));
     assert_eq!(meta["base-ref"], to_ref);
     assert_eq!(meta["current-ref"], to_ref);
     assert_eq!(meta["apply-confidence"], json!(0.93));
@@ -552,7 +552,7 @@ fn update_with_exec_agent_stages_pending_review_and_approval_rewrites_state() {
     let patch_md = fs::read_to_string(pair.fork.join(".t3/patch.md")).unwrap();
     assert!(patch_md.contains(&format!("> base-ref: {to_ref}")));
 
-    let migration_log = fs::read_to_string(pair.fork.join(".t3/migration.log")).unwrap();
+    let migration_log = fs::read_to_string(pair.fork.join(".t3/patch/migration.log")).unwrap();
     assert!(migration_log.contains("COMPLETE"));
 
     let triage_after_approval = read_json(&triage_path);
@@ -579,7 +579,7 @@ fn preview_failure_blocks_approval_but_keeps_artifacts() {
     );
 
     let diff_before =
-        fs::read_to_string(pair.fork.join(".t3/patches/PATCH-001.diff")).unwrap();
+        fs::read_to_string(pair.fork.join(".t3/patch/patches/PATCH-001.diff")).unwrap();
     let to_ref = commit_change(
         &pair.upstream,
         "src/app.txt",
@@ -607,7 +607,7 @@ fn preview_failure_blocks_approval_but_keeps_artifacts() {
         .success()
         .stdout(predicate::str::contains("pending-review"));
 
-    let triage_before_approval = read_json(&pair.fork.join(".t3/triage.json"));
+    let triage_before_approval = read_json(&pair.fork.join(".t3/patch/triage.json"));
     assert_eq!(triage_before_approval["preview"]["exit-code"], 7);
     let stdout_path = PathBuf::from(
         triage_before_approval["preview"]["stdout-path"]
@@ -630,7 +630,7 @@ fn preview_failure_blocks_approval_but_keeps_artifacts() {
         .code(3)
         .stderr(predicate::str::contains("sandbox preview failed"));
 
-    let diff_after = fs::read_to_string(pair.fork.join(".t3/patches/PATCH-001.diff")).unwrap();
+    let diff_after = fs::read_to_string(pair.fork.join(".t3/patch/patches/PATCH-001.diff")).unwrap();
     assert_eq!(diff_before, diff_after);
 }
 
@@ -679,7 +679,7 @@ fn rederive_promotes_missing_surface_to_pending_review() {
         .success()
         .stdout(predicate::str::contains("pending-review"));
 
-    let triage_after = read_json(&pair.fork.join(".t3/triage.json"));
+    let triage_after = read_json(&pair.fork.join(".t3/patch/triage.json"));
     assert_eq!(
         triage_after["patches"][0]["detected-status"],
         "MISSING-SURFACE"
@@ -726,7 +726,7 @@ fn update_applies_dependencies_in_requires_order() {
         .success()
         .stdout(predicate::str::contains("PATCH-002\tdependent-patch\tCLEAN"));
 
-    let triage = read_json(&pair.fork.join(".t3/triage.json"));
+    let triage = read_json(&pair.fork.join(".t3/patch/triage.json"));
     assert_eq!(triage["patches"][0]["id"], "PATCH-001");
     assert_eq!(triage["patches"][0]["detected-status"], "CLEAN");
     assert_eq!(triage["patches"][1]["id"], "PATCH-002");
@@ -771,7 +771,7 @@ fn update_blocks_dependent_patch_when_required_patch_is_unresolved() {
         .code(3)
         .stdout(predicate::str::contains("BLOCKED"));
 
-    let triage = read_json(&pair.fork.join(".t3/triage.json"));
+    let triage = read_json(&pair.fork.join(".t3/patch/triage.json"));
     assert_eq!(triage["patches"][0]["detected-status"], "CONFLICT");
     assert_eq!(triage["patches"][0]["triage-status"], "NEEDS-YOU");
     assert_eq!(triage["patches"][1]["detected-status"], "BLOCKED");
@@ -820,8 +820,8 @@ fn partial_approval_keeps_global_base_until_cycle_completion() {
         .stdout(predicate::eq("PATCH-001\tactive\n"));
 
     assert_eq!(patch_md_base_ref(&pair.fork), base_before_update);
-    let meta_one = read_json(&pair.fork.join(".t3/patches/PATCH-001.meta.json"));
-    let meta_two = read_json(&pair.fork.join(".t3/patches/PATCH-002.meta.json"));
+    let meta_one = read_json(&pair.fork.join(".t3/patch/patches/PATCH-001.meta.json"));
+    let meta_two = read_json(&pair.fork.join(".t3/patch/patches/PATCH-002.meta.json"));
     assert_eq!(meta_one["base-ref"], to_ref);
     assert_eq!(meta_one["current-ref"], to_ref);
     assert_ne!(meta_two["base-ref"], json!(to_ref));
@@ -841,6 +841,6 @@ fn partial_approval_keeps_global_base_until_cycle_completion() {
         .stdout(predicate::eq("PATCH-002\tactive\tCOMPLETE\n"));
 
     assert_eq!(patch_md_base_ref(&pair.fork), to_ref);
-    let migration_log = fs::read_to_string(pair.fork.join(".t3/migration.log")).unwrap();
+    let migration_log = fs::read_to_string(pair.fork.join(".t3/patch/migration.log")).unwrap();
     assert_eq!(migration_log.matches("status:   COMPLETE").count(), 1);
 }

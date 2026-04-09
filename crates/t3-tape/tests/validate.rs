@@ -67,13 +67,13 @@ fn patch_md_path(temp: &assert_fs::TempDir) -> PathBuf {
 }
 
 fn meta_path(temp: &assert_fs::TempDir, id: &str) -> PathBuf {
-    temp.child(format!(".t3/patches/{id}.meta.json"))
+    temp.child(format!(".t3/patch/patches/{id}.meta.json"))
         .path()
         .to_path_buf()
 }
 
 fn diff_path(temp: &assert_fs::TempDir, id: &str) -> PathBuf {
-    temp.child(format!(".t3/patches/{id}.diff"))
+    temp.child(format!(".t3/patch/patches/{id}.diff"))
         .path()
         .to_path_buf()
 }
@@ -356,7 +356,7 @@ fn validate_accepts_missing_or_placeholder_triage_summary() {
         .assert()
         .success();
 
-    fs::remove_file(temp.child(".t3/triage.json").path()).unwrap();
+    fs::remove_file(temp.child(".t3/patch/triage.json").path()).unwrap();
 
     t3_tape_command()
         .current_dir(temp.path())
@@ -377,7 +377,7 @@ fn validate_rejects_invalid_triage_schema() {
         "Exercise triage schema validation.",
     );
 
-    temp.child(".t3/triage.json")
+    temp.child(".t3/patch/triage.json")
         .write_str("{\"schema-version\":\"9.9.9\"}\n")
         .unwrap();
 
@@ -431,8 +431,8 @@ fn validate_staged_passes_with_two_layer_changes_staged() {
             "add",
             "src/app.txt",
             ".t3/patch.md",
-            ".t3/patches/PATCH-001.diff",
-            ".t3/patches/PATCH-001.meta.json",
+            ".t3/patch/patches/PATCH-001.diff",
+            ".t3/patch/patches/PATCH-001.meta.json",
         ],
     );
 
@@ -509,7 +509,7 @@ fn hooks_print_outputs_are_stable() {
         .assert()
         .success()
         .stdout(predicate::eq(
-            ".t3/sandbox/\n.t3/config.json.local\n.t3/state.lock\n",
+            ".t3/patch/sandbox/\n.t3/patch/config.json.local\n.t3/patch/state.lock\n",
         ));
 
     t3_tape_command()
@@ -518,7 +518,7 @@ fn hooks_print_outputs_are_stable() {
         .assert()
         .success()
         .stdout(predicate::eq(
-            ".t3/patch.md merge=union\n.t3/migration.log merge=union\n",
+            ".t3/patch.md merge=union\n.t3/patch/migration.log merge=union\n",
         ));
 }
 

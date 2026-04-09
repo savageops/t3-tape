@@ -3,7 +3,7 @@
 This fixture is a committed example of the canonical PatchMD store shape.
 
 What it demonstrates:
-- `.t3/` committed alongside the forked source tree
+- `.t3/patch.md` committed alongside a PatchMD plugin subtree at `.t3/patch/`
 - one patch record stored as `patch.md + diff + meta`
 - one sample `migration.log` entry
 - one tolerated foreign report artifact under `.t3/reports/`
@@ -17,4 +17,4 @@ pnpm -C examples/basic-fork test
 ```
 
 Test coverage:
-- `90` Vitest cases covering fixture structure, config contract, patch registry content, diff parity, and migration-log integrity
+- `86` Vitest cases covering fixture structure, config contract, patch registry content, diff parity, and migration-log integrity

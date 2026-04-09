@@ -22,10 +22,11 @@ fn render_print(kind: &HooksPrintKind) -> String {
     match kind {
         HooksPrintKind::PreCommit => pre_commit_hook(),
         HooksPrintKind::Gitignore => {
-            ".t3/sandbox/\n.t3/config.json.local\n.t3/state.lock\n".to_string()
+            ".t3/patch/sandbox/\n.t3/patch/config.json.local\n.t3/patch/state.lock\n"
+                .to_string()
         }
         HooksPrintKind::Gitattributes => {
-            ".t3/patch.md merge=union\n.t3/migration.log merge=union\n".to_string()
+            ".t3/patch.md merge=union\n.t3/patch/migration.log merge=union\n".to_string()
         }
     }
 }

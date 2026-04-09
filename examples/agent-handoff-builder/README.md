@@ -8,7 +8,7 @@ Pain point it solves:
 - schedulers and control planes need stable commands and payload hints, not raw triage JSON only
 
 What it does:
-- reads `.t3/config.json`, `.t3/triage.json`, and `.t3/patch.md`
+- reads `.t3/patch/config.json`, `.t3/patch/triage.json`, and `.t3/patch.md`
 - selects unresolved or review-stage patches
 - emits agent mode, intent, assertions, artifact paths, and follow-up commands
 - gives schedulers and runners a ready queue without rewriting PatchMD state
@@ -21,4 +21,4 @@ node examples/agent-handoff-builder/src/cli.js --state-dir examples/fixtures/age
 ```
 
 Test coverage:
-- `62` Vitest cases covering `.t3` parsing, mode selection, handoff packet construction, and CLI behavior
+- `62` Vitest cases covering PatchMD plugin parsing, mode selection, handoff packet construction, and CLI behavior

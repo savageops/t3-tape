@@ -6,7 +6,7 @@
   resolved: 0
   rederived: 0
   failed:   0
-  sandbox:  .t3/sandbox/20260409-100000Z/
+  sandbox:  .t3/patch/sandbox/20260409-100000Z/
   approved: 2026-04-09T10:05:00Z by example-user
   status:   COMPLETE
 ---

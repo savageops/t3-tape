@@ -173,7 +173,7 @@ function deleteAndCommit(repoRootPath: string, relativePath: string, message: st
 }
 
 function setConfigValue(fork: string, keyPath: string[], value: unknown): void {
-  const configPath = path.join(fork, '.t3', 'config.json');
+  const configPath = path.join(fork, '.t3', 'patch', 'config.json');
   const config = readJson(configPath);
   let current = config;
   for (const key of keyPath.slice(0, -1)) {
@@ -386,7 +386,7 @@ describe('cli integration', () => {
     expect(fs.existsSync(path.join(fork, '.git', 'hooks', 'pre-commit'))).toBe(true);
     expect(git(fork, ['rev-parse', 'HEAD'])).toBe(headBefore);
     expect(runBinary(['validate'], { cwd: fork }).stdout).toBe('OK\n');
-    expect(fs.readFileSync(path.join(fork, '.t3', 'migration.log'), 'utf8')).toContain('COMPLETE');
+    expect(fs.readFileSync(path.join(fork, '.t3', 'patch', 'migration.log'), 'utf8')).toContain('COMPLETE');
   });
 
   it('imports a diff through the built release binary', () => {

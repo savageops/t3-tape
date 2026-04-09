@@ -189,17 +189,20 @@ export function resolveStateDir(inputPath) {
 
 export function readStateSurface(inputPath) {
   const stateDir = resolveStateDir(inputPath);
-  const configPath = path.join(stateDir, 'config.json');
-  const triagePath = path.join(stateDir, 'triage.json');
+  const pluginRoot = path.join(stateDir, 'patch');
+  const configPath = path.join(pluginRoot, 'config.json');
+  const triagePath = path.join(pluginRoot, 'triage.json');
   const patchMdPath = path.join(stateDir, 'patch.md');
-  const migrationLogPath = path.join(stateDir, 'migration.log');
+  const migrationLogPath = path.join(pluginRoot, 'migration.log');
   const patchMd = readTextFile(patchMdPath);
   const patchRegistry = parsePatchRegistry(patchMd);
   const patchIndex = new Map(patchRegistry.map((entry) => [entry.id, entry]));
 
   return {
     stateDir,
+    pluginRoot,
     paths: {
+      pluginRoot,
       config: configPath,
       triage: triagePath,
       patchMd: patchMdPath,

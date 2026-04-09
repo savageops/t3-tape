@@ -87,7 +87,7 @@ pub fn default_config(upstream: &str) -> Config {
 
 pub fn build_patch_header(upstream: &str, base_ref: &str) -> String {
     format!(
-        "# PatchMD\n> project: {}\n> upstream: {}\n> base-ref: {}\n> protocol: {}\n\n---\n",
+        "# PatchMD\n> project: {}\n> upstream: {}\n> base-ref: {}\n> protocol: {}\n> state-root: patch\n\n---\n",
         derive_project_name(upstream),
         upstream,
         base_ref,

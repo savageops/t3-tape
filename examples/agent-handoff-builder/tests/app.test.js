@@ -194,7 +194,7 @@ describe('buildHandoffPacket', () => {
 
   it('warns when a filtered patch is missing from patch.md', () => {
     const stateDir = cloneFixture();
-    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'triage.json'), 'utf8'));
+    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'patch', 'triage.json'), 'utf8'));
     triage.patches.push({
       id: 'PATCH-777',
       title: 'ghost-patch',
@@ -212,7 +212,7 @@ describe('buildHandoffPacket', () => {
       'apply-commit': null,
       approved: false
     });
-    writeJson(path.join(stateDir, 'triage.json'), triage);
+    writeJson(path.join(stateDir, 'patch', 'triage.json'), triage);
 
     const packet = buildHandoffPacket(stateDir, {});
     expect(packet.warnings.some((warning) => warning.includes('PATCH-777'))).toBe(true);
@@ -220,10 +220,10 @@ describe('buildHandoffPacket', () => {
 
   it('treats provider none as configuration-needed', () => {
     const stateDir = cloneFixture();
-    const config = JSON.parse(fs.readFileSync(path.join(stateDir, 'config.json'), 'utf8'));
+    const config = JSON.parse(fs.readFileSync(path.join(stateDir, 'patch', 'config.json'), 'utf8'));
     config.agent.endpoint = '';
     delete config.agent.provider;
-    writeJson(path.join(stateDir, 'config.json'), config);
+    writeJson(path.join(stateDir, 'patch', 'config.json'), config);
 
     const packet = buildHandoffPacket(stateDir, {});
     expect(packet.provider).toBe('none');

@@ -1,0 +1,2 @@
+.t3/patch.md merge=union
+.t3/patch/migration.log merge=union

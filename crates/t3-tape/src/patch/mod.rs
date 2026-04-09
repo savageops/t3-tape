@@ -84,21 +84,42 @@ pub fn head_ref(repo_root: &Path) -> Result<String, RedtapeError> {
     git_output(repo_root, &["rev-parse", "HEAD"])
 }
 
-pub fn capture_git_diff(repo_root: &Path, staged: bool) -> Result<String, RedtapeError> {
+pub fn capture_git_diff(paths: &ResolvedPaths, staged: bool) -> Result<String, RedtapeError> {
     let args = if staged {
         vec!["diff", "--cached", "--no-ext-diff"]
     } else {
         vec!["diff", "--no-ext-diff", "HEAD"]
     };
 
-    let diff = git_output(repo_root, &args)?;
+    let diff = git_output(&paths.repo_root, &args)?;
     if diff.trim().is_empty() {
         return Err(RedtapeError::Usage(
             "no diff to record; make a change or use --staged".to_string(),
         ));
     }
 
-    Ok(diff)
+    let parsed = UnifiedDiff::parse(&diff)?;
+    let patch_registry_path = repo_relative(&paths.repo_root, &paths.patch_md_path);
+    let plugin_root = repo_relative(&paths.repo_root, &paths.plugin_root);
+    let filtered = parsed
+        .files
+        .into_iter()
+        .filter(|file| !is_patchmd_owned_path(&file.path, patch_registry_path.as_deref(), plugin_root.as_deref()))
+        .collect::<Vec<_>>();
+
+    if filtered.is_empty() {
+        let ownership = match (patch_registry_path.as_deref(), plugin_root.as_deref()) {
+            (Some(registry), Some(plugin_root)) => format!("`{registry}` and `{plugin_root}/**`"),
+            (Some(registry), None) => format!("`{registry}`"),
+            (None, Some(plugin_root)) => format!("`{plugin_root}/**`"),
+            (None, None) => "PatchMD-owned state".to_string(),
+        };
+        return Err(RedtapeError::Usage(format!(
+            "no diff to record; remaining changes only touch PatchMD-owned state under {ownership}"
+        )));
+    }
+
+    Ok(UnifiedDiff::render_files(&filtered))
 }
 
 pub fn default_author(repo_root: &Path) -> String {
@@ -394,4 +415,26 @@ fn ensure_trailing_newline(value: &str) -> String {
     } else {
         format!("{value}\n")
     }
+}
+
+fn repo_relative(repo_root: &Path, target: &Path) -> Option<String> {
+    let relative = target.strip_prefix(repo_root).ok()?;
+    let rendered = relative
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy().replace('\\', "/"))
+        .collect::<Vec<_>>()
+        .join("/");
+    if rendered.is_empty() {
+        None
+    } else {
+        Some(rendered)
+    }
+}
+
+fn is_patchmd_owned_path(path: &str, patch_registry_path: Option<&str>, plugin_root: Option<&str>) -> bool {
+    if patch_registry_path.is_some_and(|registry| path == registry) {
+        return true;
+    }
+
+    plugin_root.is_some_and(|root| path == root || path.starts_with(&format!("{root}/")))
 }

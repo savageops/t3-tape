@@ -23,7 +23,9 @@ const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const agentDemoStateDir = path.join(repoRoot, 'examples', 'fixtures', 'agent-demo', '.t3');
 const agentDemoRoot = path.dirname(agentDemoStateDir);
 const patchMarkdown = fs.readFileSync(path.join(agentDemoStateDir, 'patch.md'), 'utf8');
-const triageJson = JSON.parse(fs.readFileSync(path.join(agentDemoStateDir, 'triage.json'), 'utf8'));
+const triageJson = JSON.parse(
+  fs.readFileSync(path.join(agentDemoStateDir, 'patch', 'triage.json'), 'utf8')
+);
 
 describe('resolveProviderKind', () => {
   const cases = [
@@ -164,10 +166,10 @@ describe('readStateSurface', () => {
   });
 
   const pathChecks = [
-    ['config', 'config.json'],
-    ['triage', 'triage.json'],
+    ['config', path.join('patch', 'config.json')],
+    ['triage', path.join('patch', 'triage.json')],
     ['patchMd', 'patch.md'],
-    ['migrationLog', 'migration.log']
+    ['migrationLog', path.join('patch', 'migration.log')]
   ];
 
   for (const [key, suffix] of pathChecks) {
@@ -232,9 +234,11 @@ describe('readStateSurface', () => {
     const tempFixture = path.join(tempRoot, 'fixture');
     copyDir(agentDemoRoot, tempFixture);
     const tempStateDir = path.join(tempFixture, '.t3');
-    const editedConfig = JSON.parse(fs.readFileSync(path.join(tempStateDir, 'config.json'), 'utf8'));
+    const editedConfig = JSON.parse(
+      fs.readFileSync(path.join(tempStateDir, 'patch', 'config.json'), 'utf8')
+    );
     editedConfig.agent.endpoint = './scripts/rederive.mjs';
-    writeJson(path.join(tempStateDir, 'config.json'), editedConfig);
+    writeJson(path.join(tempStateDir, 'patch', 'config.json'), editedConfig);
 
     const surfaceWithEdit = readStateSurface(tempFixture);
     expect(surfaceWithEdit.config.agent.provider).toBe('exec');
@@ -426,9 +430,11 @@ describe('buildCommonCommands', () => {
     const tempFixture = path.join(tempRoot, 'fixture');
     copyDir(agentDemoRoot, tempFixture);
     const tempStateDir = path.join(tempFixture, '.t3');
-    const triage = JSON.parse(fs.readFileSync(path.join(tempStateDir, 'triage.json'), 'utf8'));
+    const triage = JSON.parse(
+      fs.readFileSync(path.join(tempStateDir, 'patch', 'triage.json'), 'utf8')
+    );
     triage['to-ref'] = '';
-    writeJson(path.join(tempStateDir, 'triage.json'), triage);
+    writeJson(path.join(tempStateDir, 'patch', 'triage.json'), triage);
 
     const tempCommands = buildCommonCommands(readStateSurface(tempFixture));
     expect(tempCommands).toEqual([`t3-tape --state-dir ${tempStateDir} triage --json`]);
@@ -449,7 +455,7 @@ describe('readStateSurface failure behavior', () => {
     const tempRoot = makeTempDir('agent-kit-invalid-');
     const tempFixture = path.join(tempRoot, 'fixture');
     copyDir(agentDemoRoot, tempFixture);
-    writeText(path.join(tempFixture, '.t3', 'triage.json'), '{invalid');
+    writeText(path.join(tempFixture, '.t3', 'patch', 'triage.json'), '{invalid');
 
     expect(() => readStateSurface(tempFixture)).toThrow();
   });

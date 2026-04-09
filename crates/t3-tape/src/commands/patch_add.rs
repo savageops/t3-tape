@@ -9,7 +9,7 @@ pub fn run(global: &GlobalOptions, args: &PatchAddArgs) -> Result<(), RedtapeErr
     let paths = patch::resolve_paths(global)?;
     let _lock = StateLock::acquire(&paths.lock_path)?;
     let intent = resolve_intent(args)?;
-    let raw_diff = patch::capture_git_diff(&paths.repo_root, args.staged)?;
+    let raw_diff = patch::capture_git_diff(&paths, args.staged)?;
     let context = patch::build_write_context(&paths.repo_root)?;
 
     let created = patch::create_patch_records(

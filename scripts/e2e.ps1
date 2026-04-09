@@ -111,7 +111,7 @@ function Invoke-Git {
 function Resolve-LatestSandbox {
     param([Parameter(Mandatory = $true)][string]$ForkRoot)
 
-    $sandboxRoot = Join-Path $ForkRoot '.t3\sandbox'
+    $sandboxRoot = Join-Path $ForkRoot '.t3\patch\sandbox'
     $dirs = @(Get-ChildItem -LiteralPath $sandboxRoot -Directory | Sort-Object Name)
     if ($dirs.Count -ne 1) {
         throw "Expected exactly one sandbox directory under $sandboxRoot but found $($dirs.Count)"
@@ -154,8 +154,20 @@ Invoke-Git -Repo $fork -Arguments @('config', 'user.email', 't3-tape-e2e@example
 Invoke-Git -Repo $fork -Arguments @('config', 'core.autocrlf', 'false') | Out-Null
 Write-Utf8File -Path (Join-Path $fork 'src\app.txt') -Content "alpha`nbase`n"
 Write-Utf8File -Path (Join-Path $fork 'src\plugin.txt') -Content "core`n"
+Write-Utf8File -Path (Join-Path $fork '.t3\other-tool.json') -Content "{`"owner`":`"theo`"}`n"
+Write-Utf8File -Path (Join-Path $fork '.t3\foo\bar.txt') -Content "foreign sibling`n"
 
 Invoke-Checked -FilePath $BinaryPath -Arguments @('init', '--upstream', $upstream, '--base-ref', 'HEAD') -WorkingDirectory $fork | Out-Null
+
+$foreignJson = Get-Content -LiteralPath (Join-Path $fork '.t3\other-tool.json') -Raw
+if ($foreignJson -notmatch '"owner":"theo"' -and $foreignJson -notmatch '"owner": "theo"') {
+    throw "Expected foreign .t3 sibling file to remain untouched after init."
+}
+
+$foreignNested = Get-Content -LiteralPath (Join-Path $fork '.t3\foo\bar.txt') -Raw
+if ($foreignNested.Trim() -ne 'foreign sibling') {
+    throw "Expected foreign .t3 sibling directory content to remain untouched after init."
+}
 
 Write-Utf8File -Path (Join-Path $fork 'src\app.txt') -Content "alpha`npatched`n"
 Invoke-Checked -FilePath $BinaryPath -Arguments @('patch', 'add', '--title', 'conflict-line-patch', '--intent', 'Keep the forked line change when upstream rewrites the same line.') -WorkingDirectory $fork | Out-Null
@@ -199,7 +211,7 @@ type "$agentResponsePath"
 "@
 Write-Utf8File -Path $agentScriptPath -Content $agentScript
 
-$configPath = Join-Path $fork '.t3\config.json'
+$configPath = Join-Path $fork '.t3\patch\config.json'
 $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
 $config.agent.provider = 'exec'
 $config.agent.endpoint = $agentScriptPath
@@ -214,7 +226,7 @@ Invoke-Git -Repo $upstream -Arguments @('add', '.') | Out-Null
 Invoke-Git -Repo $upstream -Arguments @('commit', '-m', 'upstream churn', '--quiet') | Out-Null
 $toRef = (Invoke-Git -Repo $upstream -Arguments @('rev-parse', 'HEAD')).Trim()
 
-$diffBeforeApproval = Get-Content -LiteralPath (Join-Path $fork '.t3\patches\PATCH-001.diff') -Raw
+$diffBeforeApproval = Get-Content -LiteralPath (Join-Path $fork '.t3\patch\patches\PATCH-001.diff') -Raw
 $updateOutput = Invoke-Checked -FilePath $BinaryPath -Arguments @('update', '--ref', $toRef) -WorkingDirectory $fork
 $triageOutput = Invoke-Checked -FilePath $BinaryPath -Arguments @('triage') -WorkingDirectory $fork
 $approveConflictOutput = Invoke-Checked -FilePath $BinaryPath -Arguments @('triage', 'approve', 'PATCH-001') -WorkingDirectory $fork
@@ -226,12 +238,12 @@ if ($headBefore -ne $headAfter) {
     throw "Current branch head changed during update flow.`nBefore: $headBefore`nAfter:  $headAfter"
 }
 
-$diffAfterApproval = Get-Content -LiteralPath (Join-Path $fork '.t3\patches\PATCH-001.diff') -Raw
+$diffAfterApproval = Get-Content -LiteralPath (Join-Path $fork '.t3\patch\patches\PATCH-001.diff') -Raw
 if ($diffBeforeApproval -eq $diffAfterApproval) {
     throw 'PATCH-001 diff was not rewritten during approval.'
 }
 
-$migrationLogPath = Join-Path $fork '.t3\migration.log'
+$migrationLogPath = Join-Path $fork '.t3\patch\migration.log'
 $migrationLog = Get-Content -LiteralPath $migrationLogPath -Raw
 if ($migrationLog -notmatch 'COMPLETE') {
     throw "Expected migration log to contain COMPLETE but got:`n$migrationLog"

@@ -15,6 +15,7 @@ pub struct ResolveOptions {
 pub struct ResolvedPaths {
     pub repo_root: PathBuf,
     pub state_dir: PathBuf,
+    pub plugin_root: PathBuf,
     pub patches_dir: PathBuf,
     pub sandbox_dir: PathBuf,
     pub lock_path: PathBuf,
@@ -26,17 +27,19 @@ pub struct ResolvedPaths {
 
 impl ResolvedPaths {
     pub fn new(repo_root: PathBuf, state_dir: PathBuf) -> Self {
-        let patches_dir = state_dir.join("patches");
-        let sandbox_dir = state_dir.join("sandbox");
-        let lock_path = state_dir.join("state.lock");
-        let config_path = state_dir.join("config.json");
+        let plugin_root = state_dir.join("patch");
+        let patches_dir = plugin_root.join("patches");
+        let sandbox_dir = plugin_root.join("sandbox");
+        let lock_path = plugin_root.join("state.lock");
+        let config_path = plugin_root.join("config.json");
         let patch_md_path = state_dir.join("patch.md");
-        let migration_log_path = state_dir.join("migration.log");
-        let triage_path = state_dir.join("triage.json");
+        let migration_log_path = plugin_root.join("migration.log");
+        let triage_path = plugin_root.join("triage.json");
 
         Self {
             repo_root,
             state_dir,
+            plugin_root,
             patches_dir,
             sandbox_dir,
             lock_path,

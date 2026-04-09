@@ -14,6 +14,7 @@ pub struct PatchHeader {
     pub upstream: String,
     pub base_ref: String,
     pub protocol: String,
+    pub state_root: Option<String>,
 }
 
 impl PatchDocument {
@@ -148,6 +149,7 @@ pub fn parse_header(header: &str) -> Result<PatchHeader, RedtapeError> {
     let mut upstream = None;
     let mut base_ref = None;
     let mut protocol = None;
+    let mut state_root = None;
 
     for line in header.lines() {
         let trimmed = line.trim();
@@ -159,6 +161,8 @@ pub fn parse_header(header: &str) -> Result<PatchHeader, RedtapeError> {
             base_ref = Some(value.trim().to_string());
         } else if let Some(value) = trimmed.strip_prefix("> protocol:") {
             protocol = Some(value.trim().to_string());
+        } else if let Some(value) = trimmed.strip_prefix("> state-root:") {
+            state_root = Some(value.trim().to_string());
         }
     }
 
@@ -167,6 +171,7 @@ pub fn parse_header(header: &str) -> Result<PatchHeader, RedtapeError> {
         upstream: upstream.ok_or_else(|| missing_header_field("upstream"))?,
         base_ref: base_ref.ok_or_else(|| missing_header_field("base-ref"))?,
         protocol: protocol.ok_or_else(|| missing_header_field("protocol"))?,
+        state_root,
     })
 }
 

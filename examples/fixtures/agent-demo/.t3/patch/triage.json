@@ -6,9 +6,9 @@
   "upstream": "https://github.com/acme/editor-shell",
   "timestamp": "2026-04-09T11:00:00Z",
   "sandbox": {
-    "path": ".t3/sandbox/20260409-110000",
+    "path": ".t3/patch/sandbox/20260409-110000",
     "worktree-branch": "t3-tape/migrate/20260409-110000",
-    "worktree-path": ".t3/sandbox/20260409-110000/worktree"
+    "worktree-path": ".t3/patch/sandbox/20260409-110000/worktree"
   },
   "patches": [
     {
@@ -22,9 +22,9 @@
       "agent-mode": "conflict-resolution",
       "notes": "Toolbar slot API changed; the button was moved to the new actions array.",
       "unresolved": [],
-      "resolved-diff-path": ".t3/sandbox/20260409-110000/resolved/PATCH-001.diff",
-      "notes-path": ".t3/sandbox/20260409-110000/resolved/PATCH-001.notes.txt",
-      "raw-response-path": ".t3/sandbox/20260409-110000/resolved/PATCH-001.json",
+      "resolved-diff-path": ".t3/patch/sandbox/20260409-110000/resolved/PATCH-001.diff",
+      "notes-path": ".t3/patch/sandbox/20260409-110000/resolved/PATCH-001.notes.txt",
+      "raw-response-path": ".t3/patch/sandbox/20260409-110000/resolved/PATCH-001.json",
       "apply-commit": "1111aaaa",
       "approved": false
     },
@@ -42,8 +42,8 @@
         "command palette shows the plugin action"
       ],
       "resolved-diff-path": null,
-      "notes-path": ".t3/sandbox/20260409-110000/resolved/PATCH-002.notes.txt",
-      "raw-response-path": ".t3/sandbox/20260409-110000/resolved/PATCH-002.json",
+      "notes-path": ".t3/patch/sandbox/20260409-110000/resolved/PATCH-002.notes.txt",
+      "raw-response-path": ".t3/patch/sandbox/20260409-110000/resolved/PATCH-002.json",
       "apply-commit": null,
       "approved": false
     },
@@ -58,7 +58,7 @@
       "agent-mode": null,
       "notes": null,
       "unresolved": [],
-      "resolved-diff-path": ".t3/sandbox/20260409-110000/resolved/PATCH-003.diff",
+      "resolved-diff-path": ".t3/patch/sandbox/20260409-110000/resolved/PATCH-003.diff",
       "notes-path": null,
       "raw-response-path": null,
       "apply-commit": "2222bbbb",
@@ -68,7 +68,7 @@
   "preview": {
     "command": "pnpm test",
     "exit-code": 0,
-    "stdout-path": ".t3/sandbox/20260409-110000/preview/stdout.log",
-    "stderr-path": ".t3/sandbox/20260409-110000/preview/stderr.log"
+    "stdout-path": ".t3/patch/sandbox/20260409-110000/preview/stdout.log",
+    "stderr-path": ".t3/patch/sandbox/20260409-110000/preview/stderr.log"
   }
 }

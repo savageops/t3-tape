@@ -3,6 +3,7 @@
 > upstream: https://github.com/example/upstream-app
 > base-ref: abc1234
 > protocol: 0.1.0
+> state-root: patch
 
 ---
 

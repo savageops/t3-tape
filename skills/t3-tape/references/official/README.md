@@ -575,7 +575,6 @@ powershell -ExecutionPolicy Bypass -File scripts/e2e.ps1
 - [`docs/implementation-status.md`](docs/implementation-status.md) - command matrix, delivery chain, and shipped boundaries
 - [`examples/README.md`](examples/README.md) - runnable example apps and the pain points they target
 - [`packages/t3-tape-npm/README.md`](packages/t3-tape-npm/README.md) - launcher-focused package notes
-- [`skills/t3-tape/SKILL.md`](skills/t3-tape/SKILL.md) - Codex skill package for operating `t3-tape` with the official workflow, references, and helper scripts
 - [`examples/basic-fork/README.md`](examples/basic-fork/README.md) - committed example state for adopters
 
 ## Security Notes

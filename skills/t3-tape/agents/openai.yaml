@@ -1,0 +1,4 @@
+interface:
+  display_name: "T3 Tape"
+  short_description: "Run PatchMD workflows with t3-tape"
+  default_prompt: "Use $t3-tape to initialize, validate, patch, update, and operate a PatchMD fork with the official T3 Tape workflow."

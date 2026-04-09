@@ -19,13 +19,13 @@ Tests:
 ### `basic-fork`
 
 Purpose:
-- show the committed `.t3/` store shape in the smallest readable form
+- show the committed PatchMD plugin shape in the smallest readable form
 
 Path:
 - [`examples/basic-fork/README.md`](./basic-fork/README.md)
 
 Tests:
-- `90`
+- `86`
 
 ## Runnable apps
 
@@ -86,7 +86,7 @@ Pain point:
 - unresolved patches are hard to hand off cleanly to agent runners and ops workflows
 
 What it does:
-- reads `.t3/config.json`, `.t3/triage.json`, and `.t3/patch.md`
+- reads `.t3/patch/config.json`, `.t3/patch/triage.json`, and `.t3/patch.md`
 - builds conflict-resolution and re-derivation job packets with follow-up commands
 
 Run:

@@ -93,9 +93,9 @@ describe('classifyPatchFinding', () => {
 
   it('flags confidence near the threshold', () => {
     const stateDir = cloneFixture();
-    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'triage.json'), 'utf8'));
+    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'patch', 'triage.json'), 'utf8'));
     triage.patches[0].confidence = 0.82;
-    writeJson(path.join(stateDir, 'triage.json'), triage);
+    writeJson(path.join(stateDir, 'patch', 'triage.json'), triage);
 
     const surfaceWithLowConfidence = readStateSurface(stateDir);
     const patch = surfaceWithLowConfidence.triage.patches[0];
@@ -105,10 +105,10 @@ describe('classifyPatchFinding', () => {
 
   it('flags merged-upstream candidates', () => {
     const stateDir = cloneFixture();
-    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'triage.json'), 'utf8'));
+    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'patch', 'triage.json'), 'utf8'));
     triage.patches[0]['merged-upstream-candidate'] = true;
     triage.patches[0].confidence = 0.95;
-    writeJson(path.join(stateDir, 'triage.json'), triage);
+    writeJson(path.join(stateDir, 'patch', 'triage.json'), triage);
 
     const surfaceWithCandidate = readStateSurface(stateDir);
     const patch = surfaceWithCandidate.triage.patches[0];
@@ -145,7 +145,7 @@ describe('buildReviewReport', () => {
     ['comment', 0, 1]
   ])('derives review decisions %#', (decision, previewExitCode, approvals) => {
     const stateDir = cloneFixture();
-    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'triage.json'), 'utf8'));
+    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'patch', 'triage.json'), 'utf8'));
     const localAssertions = JSON.parse(fs.readFileSync(fixtureAssertionsPath, 'utf8'));
     triage.preview['exit-code'] = previewExitCode;
     if (approvals === 1) {
@@ -156,7 +156,7 @@ describe('buildReviewReport', () => {
       localAssertions.patches[1].failed = 0;
       localAssertions.patches[1]['failing-assertions'] = [];
     }
-    writeJson(path.join(stateDir, 'triage.json'), triage);
+    writeJson(path.join(stateDir, 'patch', 'triage.json'), triage);
 
     const report = buildReviewReport(stateDir, localAssertions);
     expect(report.decision).toBe(decision);
@@ -168,7 +168,7 @@ describe('buildReviewReport', () => {
     [2, 0]
   ])('counts approval candidates when patch states change %#', (index, expectedCandidates) => {
     const stateDir = cloneFixture();
-    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'triage.json'), 'utf8'));
+    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'patch', 'triage.json'), 'utf8'));
 
     if (index === 0) {
       triage.patches[0]['triage-status'] = 'pending-review';
@@ -187,7 +187,7 @@ describe('buildReviewReport', () => {
       triage.patches[1].approved = true;
     }
 
-    writeJson(path.join(stateDir, 'triage.json'), triage);
+    writeJson(path.join(stateDir, 'patch', 'triage.json'), triage);
     const report = buildReviewReport(stateDir, assertions);
     expect(report.approvalCandidates).toHaveLength(expectedCandidates);
   });
@@ -212,7 +212,7 @@ describe('buildReviewReport', () => {
     [false, true, 'approve']
   ])('derives final decision variants %#', (pendingReview, failingAssertion, expectedDecision) => {
     const stateDir = cloneFixture();
-    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'triage.json'), 'utf8'));
+    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'patch', 'triage.json'), 'utf8'));
     const localAssertions = JSON.parse(fs.readFileSync(fixtureAssertionsPath, 'utf8'));
 
     triage.patches[0]['triage-status'] = pendingReview ? 'pending-review' : 'CLEAN';
@@ -224,7 +224,7 @@ describe('buildReviewReport', () => {
     localAssertions.patches[1].failed = failingAssertion ? 1 : 0;
     localAssertions.patches[1]['failing-assertions'] = failingAssertion ? ['x'] : [];
 
-    writeJson(path.join(stateDir, 'triage.json'), triage);
+    writeJson(path.join(stateDir, 'patch', 'triage.json'), triage);
     const report = buildReviewReport(stateDir, localAssertions);
     expect(report.decision).toBe(expectedDecision);
   });
@@ -236,7 +236,7 @@ describe('buildReviewReport', () => {
     [3, 0]
   ])('changes finding counts when triage mutates %#', (mode, expectedFindings) => {
     const stateDir = cloneFixture();
-    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'triage.json'), 'utf8'));
+    const triage = JSON.parse(fs.readFileSync(path.join(stateDir, 'patch', 'triage.json'), 'utf8'));
     const localAssertions = JSON.parse(fs.readFileSync(fixtureAssertionsPath, 'utf8'));
 
     if (mode === 1) {
@@ -267,7 +267,7 @@ describe('buildReviewReport', () => {
       });
     }
 
-    writeJson(path.join(stateDir, 'triage.json'), triage);
+    writeJson(path.join(stateDir, 'patch', 'triage.json'), triage);
     const report = buildReviewReport(stateDir, localAssertions);
     expect(report.findings).toHaveLength(expectedFindings);
   });

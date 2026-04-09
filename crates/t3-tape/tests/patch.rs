@@ -62,13 +62,17 @@ fn run_init(temp: &assert_fs::TempDir) {
         .success();
 }
 
+fn plugin_root(temp: &assert_fs::TempDir) -> ChildPath {
+    temp.child(".t3/patch")
+}
+
 #[test]
 fn patch_add_fails_when_state_lock_held() {
     let temp = assert_fs::TempDir::new().unwrap();
     let tracked = seed_repo(&temp);
     run_init(&temp);
 
-    let lock_path = temp.child(".t3/state.lock");
+    let lock_path = plugin_root(&temp).child("state.lock");
     let file = fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -89,7 +93,7 @@ fn patch_add_fails_when_state_lock_held() {
 }
 
 fn set_pre_patch_hook(temp: &assert_fs::TempDir, command: &str) {
-    let config_path = temp.child(".t3/config.json");
+    let config_path = plugin_root(temp).child("config.json");
     let mut config: Value =
         serde_json::from_str(&fs::read_to_string(config_path.path()).unwrap()).unwrap();
     config["hooks"]["pre-patch"] = json!(command);
@@ -141,11 +145,11 @@ fn patch_id_allocation_increments_correctly() {
         .stdout(predicate::str::contains("PATCH-002"));
 
     assert!(temp
-        .child(".t3/patches/PATCH-001.diff")
+        .child(".t3/patch/patches/PATCH-001.diff")
         .path()
         .is_file());
     assert!(temp
-        .child(".t3/patches/PATCH-002.diff")
+        .child(".t3/patch/patches/PATCH-002.diff")
         .path()
         .is_file());
 
@@ -184,8 +188,8 @@ fn patch_add_writes_diff_meta_and_appends_patch_md() {
         .success()
         .stdout(predicate::str::contains("created patch PATCH-001"));
 
-    let diff_path = temp.child(".t3/patches/PATCH-001.diff");
-    let meta_path = temp.child(".t3/patches/PATCH-001.meta.json");
+    let diff_path = temp.child(".t3/patch/patches/PATCH-001.diff");
+    let meta_path = temp.child(".t3/patch/patches/PATCH-001.meta.json");
     assert!(diff_path.path().is_file());
     assert!(meta_path.path().is_file());
 
@@ -232,11 +236,11 @@ fn patch_add_is_atomic_when_patch_md_write_fails() {
         .stderr(predicate::str::contains("injected failure"));
 
     assert!(!temp
-        .child(".t3/patches/PATCH-001.diff")
+        .child(".t3/patch/patches/PATCH-001.diff")
         .path()
         .exists());
     assert!(!temp
-        .child(".t3/patches/PATCH-001.meta.json")
+        .child(".t3/patch/patches/PATCH-001.meta.json")
         .path()
         .exists());
     assert_eq!(
@@ -373,11 +377,11 @@ fn pre_patch_hook_failure_aborts_without_partial_state() {
         .stderr(predicate::str::contains("hook failed"));
 
     assert!(!temp
-        .child(".t3/patches/PATCH-001.diff")
+        .child(".t3/patch/patches/PATCH-001.diff")
         .path()
         .exists());
     assert!(!temp
-        .child(".t3/patches/PATCH-001.meta.json")
+        .child(".t3/patch/patches/PATCH-001.meta.json")
         .path()
         .exists());
     let patch_md = fs::read_to_string(temp.child(".t3/patch.md").path()).unwrap();
@@ -424,4 +428,64 @@ fn export_writes_compact_markdown_summary() {
     assert!(rendered.contains("## [PATCH-001] exportable"));
     assert!(rendered.contains("Create a patch that can be exported."));
     assert!(rendered.contains("export summary includes this assertion"));
+}
+
+#[test]
+fn patch_add_excludes_patchmd_owned_state_from_recorded_diff() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let tracked = seed_repo(&temp);
+    run_init(&temp);
+
+    tracked.write_str("alpha\napp change\n").unwrap();
+    temp.child(".t3/patch/migration.log")
+        .write_str("owned-state-only change\n")
+        .unwrap();
+    temp.child(".t3/patch/migration.log")
+        .write_str("temporary owned-state noise\n")
+        .unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args([
+            "patch",
+            "add",
+            "--title",
+            "exclude-owned-state",
+            "--intent",
+            "Record only app code changes.",
+        ])
+        .assert()
+        .success();
+
+    let diff = fs::read_to_string(temp.child(".t3/patch/patches/PATCH-001.diff").path()).unwrap();
+    assert!(diff.contains("src/app.txt"));
+    assert!(!diff.contains(".t3/patch.md"));
+    assert!(!diff.contains(".t3/patch/migration.log"));
+}
+
+#[test]
+fn patch_add_fails_when_remaining_diff_only_contains_patchmd_owned_state() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    seed_repo(&temp);
+    run_init(&temp);
+    commit_all(&temp, "track patchmd state");
+
+    temp.child(".t3/patch/migration.log")
+        .write_str("owned-state-only change\n")
+        .unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args([
+            "patch",
+            "add",
+            "--title",
+            "state-only",
+            "--intent",
+            "Should fail when only PatchMD state changed.",
+        ])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains("remaining changes only touch PatchMD-owned state"));
 }

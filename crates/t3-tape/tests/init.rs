@@ -108,15 +108,17 @@ fn init_creates_expected_tree() {
         .stdout(predicate::str::contains(".t3"));
 
     let state_dir = temp.child(".t3");
+    let plugin_dir = state_dir.child("patch");
     assert!(state_dir.path().is_dir());
-    assert!(state_dir.child("patches").path().is_dir());
-    assert!(state_dir.child("sandbox").path().is_dir());
-    assert!(state_dir.child("config.json").path().is_file());
+    assert!(plugin_dir.path().is_dir());
+    assert!(plugin_dir.child("patches").path().is_dir());
+    assert!(plugin_dir.child("sandbox").path().is_dir());
+    assert!(plugin_dir.child("config.json").path().is_file());
     assert!(state_dir.child("patch.md").path().is_file());
-    assert!(state_dir.child("migration.log").path().is_file());
-    assert!(state_dir.child("triage.json").path().is_file());
+    assert!(plugin_dir.child("migration.log").path().is_file());
+    assert!(plugin_dir.child("triage.json").path().is_file());
 
-    let config = fs::read_to_string(state_dir.child("config.json").path()).unwrap();
+    let config = fs::read_to_string(plugin_dir.child("config.json").path()).unwrap();
     assert!(config.contains("\"protocol\": \"0.1.0\""));
     assert!(config.contains("\"upstream\": \"https://example.com/org/upstream.git\""));
 
@@ -124,8 +126,9 @@ fn init_creates_expected_tree() {
     assert!(patch_md.contains("# PatchMD"));
     assert!(patch_md.contains("> project: upstream"));
     assert!(patch_md.contains(&format!("> base-ref: {}", git_head(temp.path()))));
+    assert!(patch_md.contains("> state-root: patch"));
 
-    let triage = fs::read_to_string(state_dir.child("triage.json").path()).unwrap();
+    let triage = fs::read_to_string(plugin_dir.child("triage.json").path()).unwrap();
     assert_eq!(triage, "{}\n");
 }
 
@@ -147,10 +150,11 @@ fn init_is_idempotent() {
         .success();
 
     let state_dir = temp.child(".t3");
-    let config_before = fs::read_to_string(state_dir.child("config.json").path()).unwrap();
+    let plugin_dir = state_dir.child("patch");
+    let config_before = fs::read_to_string(plugin_dir.child("config.json").path()).unwrap();
     let patch_before = fs::read_to_string(state_dir.child("patch.md").path()).unwrap();
-    let triage_before = fs::read_to_string(state_dir.child("triage.json").path()).unwrap();
-    let migration_len_before = fs::metadata(state_dir.child("migration.log").path())
+    let triage_before = fs::read_to_string(plugin_dir.child("triage.json").path()).unwrap();
+    let migration_len_before = fs::metadata(plugin_dir.child("migration.log").path())
         .unwrap()
         .len();
 
@@ -167,7 +171,7 @@ fn init_is_idempotent() {
         .success();
 
     assert_eq!(
-        fs::read_to_string(state_dir.child("config.json").path()).unwrap(),
+        fs::read_to_string(plugin_dir.child("config.json").path()).unwrap(),
         config_before
     );
     assert_eq!(
@@ -175,11 +179,11 @@ fn init_is_idempotent() {
         patch_before
     );
     assert_eq!(
-        fs::read_to_string(state_dir.child("triage.json").path()).unwrap(),
+        fs::read_to_string(plugin_dir.child("triage.json").path()).unwrap(),
         triage_before
     );
     assert_eq!(
-        fs::metadata(state_dir.child("migration.log").path())
+        fs::metadata(plugin_dir.child("migration.log").path())
             .unwrap()
             .len(),
         migration_len_before
@@ -230,6 +234,8 @@ fn init_respects_state_dir_override() {
         .stdout(predicate::str::contains(".t3-tape-state"));
 
     assert!(temp.child(".t3-tape-state").path().is_dir());
+    assert!(temp.child(".t3-tape-state/patch").path().is_dir());
+    assert!(temp.child(".t3-tape-state/patch.md").path().is_file());
     assert!(!temp.child(".t3").path().exists());
 }
 
@@ -237,11 +243,12 @@ fn init_respects_state_dir_override() {
 fn init_refuses_to_overwrite_non_empty_files() {
     let temp = assert_fs::TempDir::new().unwrap();
     let state_dir = temp.child(".t3");
+    let plugin_dir = state_dir.child("patch");
     git_init(temp.path());
     state_dir.create_dir_all().unwrap();
-    state_dir.child("patches").create_dir_all().unwrap();
-    state_dir.child("sandbox").create_dir_all().unwrap();
-    state_dir
+    plugin_dir.child("patches").create_dir_all().unwrap();
+    plugin_dir.child("sandbox").create_dir_all().unwrap();
+    plugin_dir
         .child("config.json")
         .write_str("custom-config\n")
         .unwrap();
@@ -249,11 +256,11 @@ fn init_refuses_to_overwrite_non_empty_files() {
         .child("patch.md")
         .write_str("custom-patch\n")
         .unwrap();
-    state_dir
+    plugin_dir
         .child("migration.log")
         .write_str("custom-log\n")
         .unwrap();
-    state_dir
+    plugin_dir
         .child("triage.json")
         .write_str("custom-triage\n")
         .unwrap();
@@ -271,7 +278,7 @@ fn init_refuses_to_overwrite_non_empty_files() {
         .success();
 
     assert_eq!(
-        fs::read_to_string(state_dir.child("config.json").path()).unwrap(),
+        fs::read_to_string(plugin_dir.child("config.json").path()).unwrap(),
         "custom-config\n"
     );
     assert_eq!(
@@ -279,11 +286,68 @@ fn init_refuses_to_overwrite_non_empty_files() {
         "custom-patch\n"
     );
     assert_eq!(
-        fs::read_to_string(state_dir.child("migration.log").path()).unwrap(),
+        fs::read_to_string(plugin_dir.child("migration.log").path()).unwrap(),
         "custom-log\n"
     );
     assert_eq!(
-        fs::read_to_string(state_dir.child("triage.json").path()).unwrap(),
+        fs::read_to_string(plugin_dir.child("triage.json").path()).unwrap(),
+        "custom-triage\n"
+    );
+}
+
+#[test]
+fn init_repairs_empty_patch_md() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    git_init(temp.path());
+
+    let state_dir = temp.child(".t3");
+    let plugin_dir = state_dir.child("patch");
+    state_dir.create_dir_all().unwrap();
+    plugin_dir.child("patches").create_dir_all().unwrap();
+    plugin_dir.child("sandbox").create_dir_all().unwrap();
+
+    plugin_dir
+        .child("config.json")
+        .write_str("custom-config\n")
+        .unwrap();
+    state_dir.child("patch.md").write_str("\n  \n").unwrap();
+    plugin_dir
+        .child("migration.log")
+        .write_str("custom-log\n")
+        .unwrap();
+    plugin_dir
+        .child("triage.json")
+        .write_str("custom-triage\n")
+        .unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args([
+            "init",
+            "--upstream",
+            "https://example.com/org/upstream.git",
+            "--base-ref",
+            "HEAD",
+        ])
+        .assert()
+        .success();
+
+    let patch_md = fs::read_to_string(state_dir.child("patch.md").path()).unwrap();
+    assert!(patch_md.contains("# PatchMD"));
+    assert!(patch_md.contains("> upstream: https://example.com/org/upstream.git"));
+    assert!(patch_md.contains(&format!("> base-ref: {}", git_head(temp.path()))));
+    assert!(patch_md.contains("> state-root: patch"));
+
+    assert_eq!(
+        fs::read_to_string(plugin_dir.child("config.json").path()).unwrap(),
+        "custom-config\n"
+    );
+    assert_eq!(
+        fs::read_to_string(plugin_dir.child("migration.log").path()).unwrap(),
+        "custom-log\n"
+    );
+    assert_eq!(
+        fs::read_to_string(plugin_dir.child("triage.json").path()).unwrap(),
         "custom-triage\n"
     );
 }
@@ -311,7 +375,45 @@ fn init_tolerates_foreign_reports_directory() {
         .success();
 
     assert_eq!(fs::read_to_string(report_file.path()).unwrap(), "keep me\n");
-    assert!(temp.child(".t3/config.json").path().is_file());
-    assert!(temp.child(".t3/patches").path().is_dir());
-    assert!(temp.child(".t3/sandbox").path().is_dir());
+    assert!(temp.child(".t3/patch/config.json").path().is_file());
+    assert!(temp.child(".t3/patch/patches").path().is_dir());
+    assert!(temp.child(".t3/patch/sandbox").path().is_dir());
+}
+
+#[test]
+fn init_tolerates_foreign_t3_siblings() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    git_init(temp.path());
+
+    temp.child(".t3").create_dir_all().unwrap();
+    temp.child(".t3/other-tool.json")
+        .write_str("{\"keep\":true}\n")
+        .unwrap();
+    temp.child(".t3/foo/bar.txt")
+        .write_str("foreign nested content\n")
+        .unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args([
+            "init",
+            "--upstream",
+            "https://example.com/org/upstream.git",
+            "--base-ref",
+            "HEAD",
+        ])
+        .assert()
+        .success();
+
+    assert_eq!(
+        fs::read_to_string(temp.child(".t3/other-tool.json").path()).unwrap(),
+        "{\"keep\":true}\n"
+    );
+    assert_eq!(
+        fs::read_to_string(temp.child(".t3/foo/bar.txt").path()).unwrap(),
+        "foreign nested content\n"
+    );
+    assert!(temp.child(".t3/patch.md").path().is_file());
+    assert!(temp.child(".t3/patch/config.json").path().is_file());
+    assert!(temp.child(".t3/patch/patches").path().is_dir());
 }

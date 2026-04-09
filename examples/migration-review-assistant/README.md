@@ -8,7 +8,7 @@ Pain point it solves:
 - migration PRs need clear findings, not just a pile of sandbox artifacts
 
 What it does:
-- reads `.t3/triage.json`, `.t3/patch.md`, and optional assertion results
+- reads `.t3/patch/triage.json`, `.t3/patch.md`, and optional assertion results
 - classifies patch findings by operator priority
 - emits review comments, approval candidates, and next-step commands
 - gives PR bots, dashboards, and chatops flows a compact review packet

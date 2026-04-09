@@ -33,6 +33,14 @@ impl UnifiedDiff {
     pub fn changed_paths(&self) -> Vec<String> {
         self.files.iter().map(|file| file.path.clone()).collect()
     }
+
+    pub fn render_files(files: &[DiffFile]) -> String {
+        let mut rendered = String::new();
+        for file in files {
+            rendered.push_str(&file.raw);
+        }
+        rendered
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

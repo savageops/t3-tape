@@ -53,6 +53,7 @@ pub fn initialize(request: InitRequest) -> Result<InitReport, RedtapeError> {
     };
 
     ensure_directory(&report.paths.state_dir, &mut report.created_directories)?;
+    ensure_directory(&report.paths.plugin_root, &mut report.created_directories)?;
     ensure_directory(&report.paths.patches_dir, &mut report.created_directories)?;
     ensure_directory(&report.paths.sandbox_dir, &mut report.created_directories)?;
 
@@ -62,7 +63,12 @@ pub fn initialize(request: InitRequest) -> Result<InitReport, RedtapeError> {
         &mut report.created_files,
     )?;
     if report.paths.patch_md_path.exists() {
-        ensure_file(&report.paths.patch_md_path, b"", &mut report.created_files)?;
+        let existing = fs::read_to_string(&report.paths.patch_md_path)?;
+        if existing.trim().is_empty() {
+            let resolved_base_ref = resolve_base_ref(&report.paths.repo_root, &base_ref)?;
+            let header = schema::build_patch_header(&upstream, &resolved_base_ref);
+            atomic::write_file_atomic(&report.paths.patch_md_path, header.as_bytes())?;
+        }
     } else {
         let resolved_base_ref = resolve_base_ref(&report.paths.repo_root, &base_ref)?;
         ensure_file(

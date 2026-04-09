@@ -9,11 +9,12 @@ import { parsePatchRegistry } from '../../agent-kit/index.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const exampleRoot = path.resolve(__dirname, '..');
 const stateDir = path.join(exampleRoot, '.t3');
-const configPath = path.join(stateDir, 'config.json');
+const pluginRoot = path.join(stateDir, 'patch');
+const configPath = path.join(pluginRoot, 'config.json');
 const patchMdPath = path.join(stateDir, 'patch.md');
-const migrationLogPath = path.join(stateDir, 'migration.log');
-const diffPath = path.join(stateDir, 'patches', 'PATCH-001.diff');
-const metaPath = path.join(stateDir, 'patches', 'PATCH-001.meta.json');
+const migrationLogPath = path.join(pluginRoot, 'migration.log');
+const diffPath = path.join(pluginRoot, 'patches', 'PATCH-001.diff');
+const metaPath = path.join(pluginRoot, 'patches', 'PATCH-001.meta.json');
 const reportPath = path.join(stateDir, 'reports', 'example-summary.md');
 const appPath = path.join(exampleRoot, 'src', 'app.txt');
 
@@ -30,10 +31,11 @@ const appText = fs.readFileSync(appPath, 'utf8');
 describe('basic-fork filesystem contract', () => {
   const existingPaths = [
     ['state directory exists', stateDir],
+    ['plugin root exists', pluginRoot],
     ['config exists', configPath],
     ['patch registry exists', patchMdPath],
     ['migration log exists', migrationLogPath],
-    ['patches directory exists', path.join(stateDir, 'patches')],
+    ['patches directory exists', path.join(pluginRoot, 'patches')],
     ['patch diff exists', diffPath],
     ['patch meta exists', metaPath],
     ['reports directory exists', path.join(stateDir, 'reports')],
@@ -123,7 +125,8 @@ describe('basic-fork patch registry contract', () => {
     '> project: upstream-app',
     '> upstream: https://github.com/example/upstream-app',
     '> base-ref: abc1234',
-    '> protocol: 0.1.0'
+    '> protocol: 0.1.0',
+    '> state-root: patch'
   ];
 
   for (const line of headerLines) {
@@ -242,7 +245,7 @@ describe('basic-fork migration log contract', () => {
     'resolved: 0',
     'rederived: 0',
     'failed:   0',
-    'sandbox:  .t3/sandbox/20260409-100000Z/',
+    'sandbox:  .t3/patch/sandbox/20260409-100000Z/',
     'approved: 2026-04-09T10:05:00Z by example-user',
     'status:   COMPLETE',
     '---'

@@ -4,7 +4,7 @@
 
 It is intentionally small:
 
-- it reads the real `.t3` files T3 Tape already owns
+- it reads the real `.t3/patch.md` plus `.t3/patch/` files T3 Tape already owns
 - it normalizes the state into JavaScript-friendly shapes
 - it builds `t3-tape` command strings for follow-up automation
 

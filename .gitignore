@@ -2,8 +2,8 @@ target/
 node_modules/
 dist/
 
-.t3/sandbox/
-.t3/config.json.local
+.t3/patch/sandbox/
+.t3/patch/config.json.local
 .t3/reports/
 .docs/todo/
 /.docs
