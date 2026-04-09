@@ -175,7 +175,7 @@ Approval does all of the following:
 - refuses approval when preview failed
 - extracts the staged sandbox commit diff for the selected patch
 - rewrites `.t3/patches/PATCH-001.diff`
-- updates `.t3/patches/PATCH-001.meta.json`
+- updates `.t3/patches/PATCH-001.meta.json`, including diff-derived metadata such as `surface-hash`
 - updates the approved patch block to `active` unless the user already marked it `deprecated` or `merged-upstream`
 
 Approval does not:
@@ -184,6 +184,7 @@ Approval does not:
 
 Global base advancement rule:
 - per-patch approval rewrites only the selected patch diff, meta, and triage approval bit
+- successful approval must leave the selected patch diff and selected patch meta validate-clean as one coherent state rewrite
 - the root `patch.md` `> base-ref:` line advances only when the cycle becomes terminal
 - this keeps partial approval cycles honest: approved patches can point at the migrated upstream ref while the global header still describes the last fully completed migration base
 

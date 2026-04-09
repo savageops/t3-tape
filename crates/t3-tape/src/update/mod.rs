@@ -219,6 +219,7 @@ pub fn approve_patch(
 
     let patch_id: PatchId = args.id.parse()?;
     let diff_text = git::show_commit_patch(&sandbox_worktree, &commit)?;
+    let parsed_diff = UnifiedDiff::parse(&diff_text)?;
     atomic::write_file_atomic(
         &patch::diff_path(&paths, patch_id),
         ensure_trailing_newline(&diff_text).as_bytes(),
@@ -248,6 +249,7 @@ pub fn approve_patch(
     meta.base_ref = to_ref_resolved.clone();
     meta.current_ref = to_ref_resolved.clone();
     meta.apply_confidence = confidence;
+    meta.surface_hash = patch::surface_hash::compute(&parsed_diff);
     meta.last_applied = time::current_utc_rfc3339();
     meta.last_checked = meta.last_applied.clone();
     write_meta(&patch::meta_path(&paths, patch_id), &meta)?;

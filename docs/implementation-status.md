@@ -56,7 +56,7 @@ T3 Tape does not ship:
 | `t3-tape update --ref` | shipped | phases 0-7 through sandbox worktree, dependency-aware staging, and triage persistence |
 | `t3-tape update --ci` | shipped | writes artifacts and exits `3` when non-clean patches remain |
 | `t3-tape triage` | shipped | human and JSON output from `.t3/triage.json` |
-| `t3-tape triage approve` | shipped | rewrites approved patch state immediately and advances the global PatchMD base only on terminal cycle completion |
+| `t3-tape triage approve` | shipped | rewrites approved patch state immediately, refreshes diff-derived metadata, and advances the global PatchMD base only on terminal cycle completion |
 | `t3-tape rederive` | shipped | forces intent-first re-derivation against the latest sandbox cycle |
 | `t3-tape export` | shipped | emits a compact markdown summary of customizations |
 

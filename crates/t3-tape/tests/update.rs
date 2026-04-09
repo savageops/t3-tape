@@ -9,6 +9,7 @@ use predicates::prelude::*;
 use serde_json::{json, Value};
 use t3_tape::agent;
 use t3_tape::agent::schema::{ConflictResolutionRequest, ConflictResolutionResponse};
+use t3_tape::patch::{surface_hash, UnifiedDiff};
 use t3_tape::store::schema::AgentConfig;
 
 fn t3_tape_command() -> Command {
@@ -526,6 +527,8 @@ fn update_with_exec_agent_stages_pending_review_and_approval_rewrites_state() {
     assert_eq!(meta["base-ref"], to_ref);
     assert_eq!(meta["current-ref"], to_ref);
     assert_eq!(meta["apply-confidence"], json!(0.93));
+    let parsed = UnifiedDiff::parse(&diff_after).unwrap();
+    assert_eq!(meta["surface-hash"], json!(surface_hash::compute(&parsed)));
 
     let patch_md = fs::read_to_string(pair.fork.join(".t3/patch.md")).unwrap();
     assert!(patch_md.contains(&format!("> base-ref: {to_ref}")));
@@ -535,6 +538,13 @@ fn update_with_exec_agent_stages_pending_review_and_approval_rewrites_state() {
 
     let triage_after_approval = read_json(&triage_path);
     assert_eq!(triage_after_approval["patches"][0]["approved"], true);
+
+    t3_tape_command()
+        .current_dir(&pair.fork)
+        .args(["validate"])
+        .assert()
+        .success()
+        .stdout(predicate::eq("OK\n"));
 }
 
 #[test]

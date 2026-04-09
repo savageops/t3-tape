@@ -189,7 +189,7 @@ This is the surface your internal dashboard, CI job, Slack notifier, bot, or Saa
 Approval:
 
 - rewrites `.t3/patches/PATCH-001.diff`
-- updates `.t3/patches/PATCH-001.meta.json`
+- updates `.t3/patches/PATCH-001.meta.json`, including diff-derived fields that must stay aligned with the approved diff
 - advances the root `> base-ref:` in `.t3/patch.md` only when the cycle becomes terminal
 - keeps the current branch untouched
 - does not auto-merge the sandbox branch into your working branch
