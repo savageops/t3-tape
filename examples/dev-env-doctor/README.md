@@ -1,6 +1,6 @@
 # Dev Env Doctor
 
-`dev-env-doctor` is a small CLI that checks whether a developer machine or CI worker is ready for a project profile.
+`dev-env-doctor` is a small CLI that checks whether a developer machine or CI worker is ready for a project profile and emits a remediation loop.
 
 Pain point it solves:
 - onboarding drift across local machines
@@ -13,6 +13,7 @@ What it does:
 - checks required files
 - checks service readiness
 - prints either text or JSON
+- emits a staged remediation workflow for blocked checks, warnings, and rerun verification
 
 Run it:
 
@@ -22,4 +23,4 @@ node examples/dev-env-doctor/src/cli.js --profile examples/dev-env-doctor/sample
 ```
 
 Test coverage:
-- `60+` Vitest cases covering version comparison, diagnostics, report generation, and CLI behavior
+- `72` Vitest cases covering version comparison, diagnostics, remediation workflow generation, and CLI behavior

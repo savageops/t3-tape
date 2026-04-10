@@ -12,6 +12,7 @@ What it does:
 - picks the best target release for each fork
 - decides whether to run, schedule, hold, or skip the update
 - emits exact `t3-tape update` commands for schedulers, bots, and control planes
+- emits automation waves so a scheduler can separate immediate runs, scheduled runs, and blocked forks cleanly
 
 Run it:
 
@@ -21,4 +22,4 @@ node examples/fleet-upgrade-coordinator/src/cli.js --manifest examples/fleet-upg
 ```
 
 Test coverage:
-- `61` Vitest cases covering release selection, policy routing, update command planning, and CLI behavior
+- `62` Vitest cases covering release selection, policy routing, wave planning, and CLI behavior

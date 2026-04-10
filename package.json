@@ -8,7 +8,7 @@
     "lint:rust": "cargo fmt --check && cargo clippy -p t3-tape --all-targets -- -D warnings",
     "smoke:launcher": "node packages/t3-tape-npm/dist/cli.js --help",
     "test": "pnpm run test:rust && pnpm run test:node && pnpm run test:examples",
-    "test:examples": "pnpm -C examples/basic-fork test && pnpm -C examples/agent-kit test && pnpm -C examples/dev-env-doctor test && pnpm -C examples/test-impact-planner test && pnpm -C examples/release-note-router test && pnpm -C examples/agent-handoff-builder test && pnpm -C examples/migration-review-assistant test && pnpm -C examples/fleet-upgrade-coordinator test",
+    "test:examples": "pnpm -C examples/basic-fork test && pnpm -C examples/agent-kit test && pnpm -C examples/migration-autopilot test && pnpm -C examples/dev-env-doctor test && pnpm -C examples/test-impact-planner test && pnpm -C examples/release-note-router test && pnpm -C examples/agent-handoff-builder test && pnpm -C examples/migration-review-assistant test && pnpm -C examples/fleet-upgrade-coordinator test",
     "test:node": "pnpm -C packages/t3-tape-npm test",
     "test:rust": "cargo test -p t3-tape"
   }

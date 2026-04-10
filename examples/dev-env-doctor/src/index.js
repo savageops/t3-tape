@@ -1,4 +1,5 @@
 import { uniqueValues } from '../../shared/collections.js';
+import { createWorkflow, createWorkflowStage } from '../../shared/workflow.js';
 
 const STATUS_RANK = {
   ready: 0,
@@ -242,13 +243,53 @@ export function buildDoctorReport(profile, snapshot = {}) {
       .filter((result) => result.status !== 'ready')
       .map((result) => result.fixHint ?? result.summary)
   );
+  const blockedResults = results.filter((result) => result.status === 'blocked');
+  const warningResults = results.filter((result) => result.status === 'warning');
 
   return {
     profile: profile.name ?? 'unnamed-profile',
     status,
     counts,
     results,
-    nextSteps
+    nextSteps,
+    workflow: createWorkflow({
+      name: 'environment-remediation-loop',
+      summary: 'Fix blocked checks first, clear warnings second, then rerun the readiness gate.',
+      automationTargets: ['local-bootstrap', 'ci-machine-readiness', 'preflight-check'],
+      gateConditions: [
+        blockedResults.length > 0 ? `${blockedResults.length} blocked check(s) require action` : 'no blocked checks',
+        warningResults.length > 0 ? `${warningResults.length} warning check(s) remain` : 'no warning checks'
+      ],
+      stages: [
+        createWorkflowStage({
+          id: 'fix-blockers',
+          title: 'Fix blockers',
+          summary: 'Resolve missing required tools, files, env vars, or services.',
+          status: blockedResults.length > 0 ? 'action-required' : 'clear',
+          commands: blockedResults.map((result) => result.fixHint),
+          items: blockedResults.map((result) => `${result.kind}:${result.name}`),
+          notes: blockedResults.map((result) => result.summary)
+        }),
+        createWorkflowStage({
+          id: 'clear-warnings',
+          title: 'Clear warnings',
+          summary: 'Resolve optional-but-useful setup drift so automation runs stay predictable.',
+          status: warningResults.length > 0 ? 'recommended' : 'clear',
+          commands: warningResults.map((result) => result.fixHint),
+          items: warningResults.map((result) => `${result.kind}:${result.name}`),
+          notes: warningResults.map((result) => result.summary)
+        }),
+        createWorkflowStage({
+          id: 'rerun-readiness',
+          title: 'Re-run readiness checks',
+          summary: 'Run the doctor again after fixes so CI or onboarding can proceed cleanly.',
+          notes: [
+            `profile=${profile.name ?? 'unnamed-profile'}`,
+            `status=${status}`
+          ]
+        })
+      ]
+    })
   };
 }
 
@@ -274,6 +315,16 @@ export function formatDoctorReport(report) {
     lines.push('Checks:');
     for (const result of report.results) {
       lines.push(`[${result.status.toUpperCase()}] ${result.kind} ${result.name}: ${result.summary}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('Automation loop:');
+  for (const stage of report.workflow.stages) {
+    lines.push(`- ${stage.title} [${stage.status}]`);
+    lines.push(`  - ${stage.summary}`);
+    for (const note of stage.notes) {
+      lines.push(`  - note: ${note}`);
     }
   }
 

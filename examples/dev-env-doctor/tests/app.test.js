@@ -182,6 +182,22 @@ describe('buildDoctorReport', () => {
     });
   });
 
+  it('builds a remediation workflow for automation', () => {
+    const report = buildDoctorReport(baseProfile, {
+      tools: { node: '18.0.0' },
+      env: {},
+      files: [],
+      services: {}
+    });
+    expect(report.workflow.name).toBe('environment-remediation-loop');
+    expect(report.workflow.stages.map((stage) => stage.id)).toEqual([
+      'fix-blockers',
+      'clear-warnings',
+      'rerun-readiness'
+    ]);
+    expect(report.workflow.gateConditions.some((note) => note.includes('blocked check'))).toBe(true);
+  });
+
   it('renders a readable text report', () => {
     const report = buildDoctorReport(baseProfile, {
       tools: { node: '20.0.0' },
@@ -193,6 +209,8 @@ describe('buildDoctorReport', () => {
     expect(output).toContain('Profile: workspace');
     expect(output).toContain('Warnings: 1');
     expect(output).toContain('[WARNING] env TOKEN');
+    expect(output).toContain('Automation loop:');
+    expect(output).toContain('Fix blockers');
   });
 });
 

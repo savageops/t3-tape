@@ -114,6 +114,7 @@ export function resolveProviderKind(agent = {}) {
 function normalizeConfig(rawConfig) {
   const agent = rawConfig.agent ?? {};
   const sandbox = rawConfig.sandbox ?? {};
+  const hooks = rawConfig.hooks ?? {};
 
   return {
     protocol: rawConfig.protocol ?? '0.1.0',
@@ -126,6 +127,13 @@ function normalizeConfig(rawConfig) {
     },
     sandbox: {
       previewCommand: sandbox['preview-command'] ?? ''
+    },
+    hooks: {
+      prePatch: hooks['pre-patch'] ?? '',
+      postPatch: hooks['post-patch'] ?? '',
+      preUpdate: hooks['pre-update'] ?? '',
+      postUpdate: hooks['post-update'] ?? '',
+      onConflict: hooks['on-conflict'] ?? ''
     }
   };
 }

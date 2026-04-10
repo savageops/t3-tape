@@ -158,11 +158,25 @@ describe('buildFleetPlan', () => {
     });
   });
 
+  it('builds workflow waves for schedulers and operators', () => {
+    const plan = buildFleetPlan(manifest, releases);
+    expect(plan.waves.runNow).toHaveLength(1);
+    expect(plan.waves.schedule).toHaveLength(1);
+    expect(plan.workflow.name).toBe('fleet-update-loop');
+    expect(plan.workflow.stages.map((stage) => stage.id)).toEqual([
+      'run-now-wave',
+      'scheduled-wave',
+      'blocked-wave'
+    ]);
+  });
+
   it('renders markdown output', () => {
     const output = renderMarkdown(buildFleetPlan(manifest, releases));
     expect(output).toContain('# Fleet Upgrade Plan');
     expect(output).toContain('editor-shell-fork');
     expect(output).toContain('docs-fork');
+    expect(output).toContain('Automation waves:');
+    expect(output).toContain('Execute immediate upgrades');
   });
 });
 

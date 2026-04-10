@@ -1,4 +1,5 @@
 import { buildUpdateCommand } from '../../agent-kit/index.js';
+import { createWorkflow, createWorkflowStage } from '../../shared/workflow.js';
 
 const PRIORITY_RANK = {
   high: 0,
@@ -205,7 +206,58 @@ export function buildFleetPlan(manifest, releases) {
       hold: plans.filter((plan) => plan.action === 'hold').length,
       skip: plans.filter((plan) => plan.action === 'skip').length
     },
-    plans
+    plans,
+    waves: {
+      runNow: plans.filter((plan) => plan.action === 'run-now'),
+      schedule: plans.filter((plan) => plan.action === 'schedule'),
+      hold: plans.filter((plan) => plan.action === 'hold'),
+      skip: plans.filter((plan) => plan.action === 'skip')
+    },
+    workflow: createWorkflow({
+      name: 'fleet-update-loop',
+      summary: 'Batch safe upgrades first, stage scheduled updates next, and keep blocked repos visible instead of hidden.',
+      automationTargets: ['nightly-scheduler', 'release-control-plane', 'chatops-status-board'],
+      gateConditions: [
+        'run-now wave should execute only for projects without open triage',
+        'scheduled wave should wait for the next update window'
+      ],
+      stages: [
+        createWorkflowStage({
+          id: 'run-now-wave',
+          title: 'Execute immediate upgrades',
+          summary: 'Run safe or security-sensitive updates immediately.',
+          status: plans.some((plan) => plan.action === 'run-now') ? 'ready' : 'empty',
+          commands: plans.filter((plan) => plan.action === 'run-now').map((plan) => plan.command),
+          items: plans.filter((plan) => plan.action === 'run-now').map((plan) => plan.projectId),
+          notes: plans
+            .filter((plan) => plan.action === 'run-now')
+            .map((plan) => plan.reason)
+        }),
+        createWorkflowStage({
+          id: 'scheduled-wave',
+          title: 'Queue scheduled upgrades',
+          summary: 'Prepare the next safe batch for the team update window.',
+          status: plans.some((plan) => plan.action === 'schedule') ? 'scheduled' : 'empty',
+          commands: plans.filter((plan) => plan.action === 'schedule').map((plan) => plan.command),
+          items: plans.filter((plan) => plan.action === 'schedule').map((plan) => plan.projectId),
+          notes: plans
+            .filter((plan) => plan.action === 'schedule')
+            .map((plan) => plan.reason)
+        }),
+        createWorkflowStage({
+          id: 'blocked-wave',
+          title: 'Surface blocked repos',
+          summary: 'Keep holds and skips explicit so operators can clear triage or policy blockers deliberately.',
+          status: plans.some((plan) => ['hold', 'skip'].includes(plan.action)) ? 'attention' : 'clear',
+          items: plans
+            .filter((plan) => ['hold', 'skip'].includes(plan.action))
+            .map((plan) => `${plan.projectId}:${plan.action}`),
+          notes: plans
+            .filter((plan) => ['hold', 'skip'].includes(plan.action))
+            .map((plan) => plan.reason)
+        })
+      ]
+    })
   };
 }
 
@@ -228,6 +280,19 @@ export function renderMarkdown(plan) {
     lines.push(`- reason: ${entry.reason}`);
     if (entry.command) {
       lines.push(`- command: ${entry.command}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('Automation waves:');
+  for (const stage of plan.workflow.stages) {
+    lines.push(`- ${stage.title} [${stage.status}]`);
+    lines.push(`  - ${stage.summary}`);
+    for (const command of stage.commands) {
+      lines.push(`  - command: ${command}`);
+    }
+    for (const note of stage.notes) {
+      lines.push(`  - note: ${note}`);
     }
   }
 

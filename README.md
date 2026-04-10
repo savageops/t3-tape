@@ -461,7 +461,7 @@ T3 Tape stays the source of truth.
 
 ## Runnable Agentic Examples
 
-The repo includes runnable example apps that show how to put T3 Tape inside real automation and review loops by reading `.t3/patch.md` plus `.t3/patch/` state and invoking `t3-tape` commands, not by custom scripts mutating PatchMD internals directly.
+The repo includes runnable example apps that show how to put T3 Tape inside real automation and review loops. The flagship example drives an actual temp-repo migration through `t3-tape update`, agent resolution, review synthesis, approval, and final validation. The rest of the suite now exposes downstream operator loops instead of shallow read-only summaries.
 
 Shared helper layer:
 
@@ -470,23 +470,52 @@ Shared helper layer:
 
 Agentic examples:
 
+- [`examples/migration-autopilot/README.md`](examples/migration-autopilot/README.md)
+  creates temp upstream and fork repos, records patches, introduces upstream churn, runs `t3-tape update`, synthesizes handoff and review packets, and auto-approves ready patches
 - [`examples/agent-handoff-builder/README.md`](examples/agent-handoff-builder/README.md)
-  turns unresolved patches into agent job packets for conflict resolution and re-derivation queues
+  turns persisted triage state plus `.t3/patch/config.json` into a staged agent-dispatch loop for CI runners, schedulers, and agent workers
 - [`examples/migration-review-assistant/README.md`](examples/migration-review-assistant/README.md)
-  turns triage plus assertion output into review findings, approval candidates, and operator comments
+  turns triage plus assertion output into a staged review gate for PR bots, dashboards, and approval flows
 - [`examples/fleet-upgrade-coordinator/README.md`](examples/fleet-upgrade-coordinator/README.md)
-  plans which patched forks should update now, later, or not at all across a fleet
+  plans which patched forks should run the deeper migration pipeline now, later, or not at all across a fleet, with explicit automation waves
 
 Other workflow examples:
 
 - [`examples/dev-env-doctor/README.md`](examples/dev-env-doctor/README.md)
-  catches onboarding and CI environment drift
+  catches onboarding and CI environment drift and emits a remediation loop
 - [`examples/test-impact-planner/README.md`](examples/test-impact-planner/README.md)
-  maps changed files to the right test commands and owners
+  maps changed files to the right test commands, owners, and staged validation batches
 - [`examples/release-note-router/README.md`](examples/release-note-router/README.md)
-  converts commit streams into grouped release notes and version bump guidance
+  converts commit streams into grouped release notes, bump guidance, and a release-train handoff
 
-See [`examples/README.md`](examples/README.md) for run commands and test counts.
+For config-driven automation, the key file is `.t3/patch/config.json`. The example stack now makes that explicit:
+
+```json
+{
+  "agent": {
+    "provider": "exec",
+    "endpoint": "node scripts/agent-runner.mjs",
+    "confidence-threshold": 0.8,
+    "max-attempts": 3
+  },
+  "sandbox": {
+    "preview-command": "pnpm test"
+  },
+  "hooks": {
+    "pre-update": "",
+    "post-update": "",
+    "on-conflict": ""
+  }
+}
+```
+
+That config is what the example stack uses to explain real CI/CD and agent behavior:
+- `migration-autopilot` drives the update cycle that produces triage state
+- `agent-handoff-builder` turns config plus triage into agent dispatch stages
+- `migration-review-assistant` turns config plus assertions into review gates
+- `fleet-upgrade-coordinator` decides which repos should enter that loop now versus later
+
+See [`examples/README.md`](examples/README.md) for run commands and the example hierarchy.
 
 ### Hook and env contract
 

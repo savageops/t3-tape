@@ -1,6 +1,6 @@
 # Release Note Router
 
-`release-note-router` is a small CLI that groups commits into release notes and recommends a version bump.
+`release-note-router` is a small CLI that groups commits into release notes, recommends a version bump, and emits a release-train workflow.
 
 Pain point it solves:
 - release notes taking too long to write by hand
@@ -12,6 +12,7 @@ What it does:
 - groups them into stable release note sections
 - recommends `major`, `minor`, `patch`, or `none`
 - prints either JSON or Markdown
+- emits a release workflow that is ready for changelog jobs, release bots, and manual-approval gates
 
 Run it:
 
@@ -21,4 +22,4 @@ node examples/release-note-router/src/cli.js --input examples/release-note-route
 ```
 
 Test coverage:
-- `60+` Vitest cases covering commit parsing, bump selection, note grouping, markdown rendering, and CLI behavior
+- `73` Vitest cases covering commit parsing, bump selection, workflow generation, markdown rendering, and CLI behavior

@@ -7,6 +7,7 @@ import {
   summarizeTriageCounts
 } from '../../agent-kit/index.js';
 import { uniqueValues } from '../../shared/collections.js';
+import { createWorkflow, createWorkflowStage } from '../../shared/workflow.js';
 
 function matchesFilter(patch, options) {
   if (options.patchId && patch.id !== options.patchId) {
@@ -76,6 +77,87 @@ export function buildAgentJob(surface, patch) {
   };
 }
 
+export function buildHandoffWorkflow(surface, jobs, options = {}) {
+  const agentConfigured = surface.config.agent.provider !== 'none' && Boolean(surface.config.agent.endpoint);
+  const approvalCommands = jobs
+    .map((job) => job.approvalCommand)
+    .filter(Boolean);
+  const jobPatchIds = jobs.map((job) => job.patchId);
+
+  return createWorkflow({
+    name: 'agent-handoff-loop',
+    summary: 'Turn triage state into an agent queue, refresh the migration state, then approve safe patches.',
+    automationTargets: ['ci-update-job', 'agent-runner', 'chatops-review-bot'],
+    gateConditions: [
+      `confidence-threshold >= ${surface.config.agent.confidenceThreshold}`,
+      surface.config.sandbox.previewCommand
+        ? `preview-command configured: ${surface.config.sandbox.previewCommand}`
+        : 'preview-command not configured',
+      agentConfigured
+        ? `agent endpoint ready: ${surface.config.agent.endpoint}`
+        : 'agent endpoint missing'
+    ],
+    stages: [
+      createWorkflowStage({
+        id: 'read-triage',
+        title: 'Read triage state',
+        summary: 'Load the current PatchMD triage surface and build the unresolved job queue.',
+        commands: [buildCommonCommands(surface)[0]],
+        items: jobPatchIds,
+        notes: [
+          `from ${surface.triage.fromRef} to ${surface.triage.toRef}`,
+          `${jobs.length} queued job(s)`
+        ]
+      }),
+      createWorkflowStage({
+        id: 'dispatch-agents',
+        title: 'Dispatch agent jobs',
+        summary: 'Send each queued patch to the configured agent runner using the provider and endpoint from config.json.',
+        status: agentConfigured ? 'ready' : 'requires-configuration',
+        commands: agentConfigured ? [surface.config.agent.endpoint] : [],
+        items: jobs.map((job) => `${job.patchId}:${job.mode}`),
+        notes: [
+          `provider=${surface.config.agent.provider}`,
+          `max-attempts=${surface.config.agent.maxAttempts}`,
+          surface.config.hooks.onConflict
+            ? `on-conflict hook=${surface.config.hooks.onConflict}`
+            : 'on-conflict hook not configured'
+        ]
+      }),
+      createWorkflowStage({
+        id: 'refresh-triage',
+        title: 'Refresh triage after agent attempts',
+        summary: 'Re-run update to fold agent results back into the sandbox triage state.',
+        commands: uniqueValues(jobs.map((job) => job.followUpCommand)),
+        items: jobPatchIds,
+        notes: [
+          surface.config.hooks.preUpdate
+            ? `pre-update hook=${surface.config.hooks.preUpdate}`
+            : 'pre-update hook not configured',
+          surface.config.hooks.postUpdate
+            ? `post-update hook=${surface.config.hooks.postUpdate}`
+            : 'post-update hook not configured'
+        ]
+      }),
+      createWorkflowStage({
+        id: 'approve-ready',
+        title: 'Approve safe patches',
+        summary: 'Approve patches that have returned to pending-review with acceptable confidence and no unresolved assertions.',
+        status: approvalCommands.length > 0 ? 'ready' : 'no-ready-patches',
+        commands: approvalCommands,
+        items: jobs
+          .filter((job) => job.approvalCommand)
+          .map((job) => job.patchId),
+        notes: [
+          surface.config.sandbox.previewCommand
+            ? `preview-command=${surface.config.sandbox.previewCommand}`
+            : 'preview-command not configured'
+        ]
+      })
+    ]
+  });
+}
+
 export function buildHandoffPacket(surfaceOrPath, options = {}) {
   const surface = typeof surfaceOrPath === 'string'
     ? readStateSurface(surfaceOrPath)
@@ -114,7 +196,20 @@ export function buildHandoffPacket(surfaceOrPath, options = {}) {
       ...buildCommonCommands(surface),
       ...jobs.flatMap((job) => [job.followUpCommand, job.approvalCommand])
     ]),
+    configuration: {
+      agent: {
+        provider: surface.config.agent.provider,
+        endpoint: surface.config.agent.endpoint,
+        confidenceThreshold: surface.config.agent.confidenceThreshold,
+        maxAttempts: surface.config.agent.maxAttempts
+      },
+      sandbox: {
+        previewCommand: surface.config.sandbox.previewCommand
+      },
+      hooks: surface.config.hooks
+    },
     jobs,
+    workflow: buildHandoffWorkflow(surface, jobs, options),
     warnings
   };
 }
@@ -143,6 +238,21 @@ export function renderMarkdown(packet) {
     lines.push('Common commands:');
     for (const command of packet.commands) {
       lines.push(`- ${command}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('Automation loop:');
+  for (const stage of packet.workflow.stages) {
+    lines.push(`- ${stage.title} [${stage.status}]`);
+    lines.push(`  - ${stage.summary}`);
+    if (stage.commands.length > 0) {
+      for (const command of stage.commands) {
+        lines.push(`  - command: ${command}`);
+      }
+    }
+    for (const note of stage.notes) {
+      lines.push(`  - note: ${note}`);
     }
   }
 

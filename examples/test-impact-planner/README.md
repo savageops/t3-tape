@@ -1,6 +1,6 @@
 # Test Impact Planner
 
-`test-impact-planner` is a small CLI that maps changed files to the smallest useful validation plan.
+`test-impact-planner` is a small CLI that maps changed files to the smallest useful validation plan and exposes a routing loop for CI.
 
 Pain point it solves:
 - running too many tests for small changes
@@ -11,6 +11,7 @@ What it does:
 - normalizes changed file paths
 - matches them against manifest rules
 - returns commands, owners, labels, and risk
+- emits command batches plus a staged validation-routing workflow
 - supports shell scripts, CI jobs, bots, and review dashboards
 
 Run it:
@@ -21,4 +22,4 @@ node examples/test-impact-planner/src/cli.js --manifest examples/test-impact-pla
 ```
 
 Test coverage:
-- `60+` Vitest cases covering glob matching, plan construction, routing, and CLI behavior
+- `68` Vitest cases covering glob matching, plan construction, workflow batching, and CLI behavior

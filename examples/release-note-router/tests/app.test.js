@@ -115,6 +115,19 @@ describe('buildReleaseSummary', () => {
     expect(summary.totalCommits).toBe(2);
   });
 
+  it('builds a release workflow for automation handoff', () => {
+    const summary = buildReleaseSummary(['feat(ui): add preview', 'fix(cli): resolve bug'], {
+      version: '1.2.0'
+    });
+    expect(summary.workflow.name).toBe('release-train-loop');
+    expect(summary.workflow.stages.map((stage) => stage.id)).toEqual([
+      'classify-commits',
+      'draft-release-notes',
+      'handoff-release'
+    ]);
+    expect(summary.workflow.stages[2].notes).toContain('version=1.2.0');
+  });
+
   it('supports object-based input', () => {
     const summary = buildReleaseSummary([
       { type: 'feat', scope: 'ui', summary: 'add preview' },
@@ -135,6 +148,8 @@ describe('buildReleaseSummary', () => {
     expect(markdown).toContain('### Features');
     expect(markdown).toContain('- ui: add preview');
     expect(markdown).toContain('Version: 1.2.0');
+    expect(markdown).toContain('Release workflow:');
+    expect(markdown).toContain('Handoff release');
   });
 
   it('marks breaking entries in markdown', () => {

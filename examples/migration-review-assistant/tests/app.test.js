@@ -198,11 +198,27 @@ describe('buildReviewReport', () => {
     expect(report.commands.some((command) => command.includes('triage --json'))).toBe(true);
   });
 
+  it('builds queues and workflow stages for the review loop', () => {
+    const report = buildReviewReport(fixtureStateDir, assertions);
+    expect(report.queues.blockers).toContain('PATCH-002');
+    expect(report.workflow.name).toBe('review-approval-loop');
+    expect(report.workflow.stages.map((stage) => stage.id)).toEqual([
+      'load-review-surface',
+      'clear-blockers',
+      'guarded-review',
+      'approve-safe-patches'
+    ]);
+    expect(report.workflow.gateConditions.some((note) => note.includes('preview-command configured'))).toBe(true);
+    expect(report.workflow.stages[1].status).toBe('action-required');
+  });
+
   it('renders markdown output', () => {
     const report = buildReviewReport(fixtureStateDir, assertions);
     const output = renderMarkdown(report);
     expect(output).toContain('# Migration Review Report');
     expect(output).toContain('request-changes');
+    expect(output).toContain('Review workflow:');
+    expect(output).toContain('Approve safe patches');
   });
 
   it.each([

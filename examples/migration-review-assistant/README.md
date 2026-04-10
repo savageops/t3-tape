@@ -10,8 +10,13 @@ Pain point it solves:
 What it does:
 - reads `.t3/patch/triage.json`, `.t3/patch.md`, and optional assertion results
 - classifies patch findings by operator priority
-- emits review comments, approval candidates, and next-step commands
+- emits review comments, approval candidates, guarded-review queues, and next-step commands
+- emits a staged review loop so PR bots or dashboards can separate blockers, guarded approvals, and safe approvals
 - gives PR bots, dashboards, and chatops flows a compact review packet
+
+Automation angle:
+- consumes the same `.t3/patch/config.json` preview command and confidence threshold that the main update flow uses
+- turns that state into a repeatable review gate for CI comments, PR checks, or chatops approval flows
 
 Run it:
 
@@ -21,4 +26,4 @@ node examples/migration-review-assistant/src/cli.js --state-dir examples/fixture
 ```
 
 Test coverage:
-- `64` Vitest cases covering assertion normalization, finding classification, review packet generation, and CLI behavior
+- `65` Vitest cases covering assertion normalization, finding classification, workflow generation, and CLI behavior

@@ -6,6 +6,7 @@ import {
   readStateSurface
 } from '../../agent-kit/index.js';
 import { uniqueValues } from '../../shared/collections.js';
+import { createWorkflow, createWorkflowStage } from '../../shared/workflow.js';
 
 const PRIORITY_LABELS = {
   1: 'P1',
@@ -189,6 +190,10 @@ export function buildReviewReport(surfaceOrPath, assertionInput, options = {}) {
       ? 'comment'
       : 'approve';
 
+  const blockerFindings = findings.filter((finding) => finding.priority === 1);
+  const guardedFindings = findings.filter((finding) => finding.priority === 2);
+  const readyApprovals = approvalCandidates;
+
   return {
     project: surface.config.upstream,
     stateDir: surface.stateDir,
@@ -203,6 +208,63 @@ export function buildReviewReport(surfaceOrPath, assertionInput, options = {}) {
       command: finding.command
     })),
     approvalCandidates,
+    queues: {
+      blockers: blockerFindings.map((finding) => finding.patchId),
+      guarded: guardedFindings.map((finding) => finding.patchId),
+      approvals: readyApprovals.map((candidate) => candidate.patchId)
+    },
+    workflow: createWorkflow({
+      name: 'review-approval-loop',
+      summary: 'Review preview/assertion evidence, clear blockers, then approve safe patches.',
+      automationTargets: ['pull-request-bot', 'chatops-review', 'approval-runner'],
+      gateConditions: [
+        reportPreviewGate(surface.triage.preview ?? null),
+        surface.config?.sandbox?.previewCommand
+          ? `preview-command configured: ${surface.config.sandbox.previewCommand}`
+          : 'preview-command not configured'
+      ],
+      stages: [
+        createWorkflowStage({
+          id: 'load-review-surface',
+          title: 'Load review surface',
+          summary: 'Read triage plus assertion output and assemble a review packet.',
+          commands: [buildTriageCommand({ stateDir: surface.stateDir, json: true })],
+          items: surface.triage.patches.map((patch) => patch.id),
+          notes: [`decision=${decision}`]
+        }),
+        createWorkflowStage({
+          id: 'clear-blockers',
+          title: 'Clear blockers',
+          summary: 'Handle preview failures, unresolved behavior, and patches still requiring operator help.',
+          status: blockerFindings.length > 0 ? 'action-required' : 'clear',
+          commands: blockerFindings.map((finding) => finding.command),
+          items: blockerFindings.map((finding) => finding.patchId),
+          notes: blockerFindings.map((finding) => finding.summary)
+        }),
+        createWorkflowStage({
+          id: 'guarded-review',
+          title: 'Review guarded approvals',
+          summary: 'Inspect low-confidence or merged-upstream-adjacent results before approving them.',
+          status: guardedFindings.length > 0 ? 'manual-review' : 'clear',
+          commands: guardedFindings.map((finding) => finding.command),
+          items: guardedFindings.map((finding) => finding.patchId),
+          notes: guardedFindings.map((finding) => finding.summary)
+        }),
+        createWorkflowStage({
+          id: 'approve-safe-patches',
+          title: 'Approve safe patches',
+          summary: 'Approve the patches that passed preview and assertion gates cleanly.',
+          status: readyApprovals.length > 0 ? 'ready' : 'no-ready-patches',
+          commands: readyApprovals.map((candidate) => candidate.command),
+          items: readyApprovals.map((candidate) => candidate.patchId),
+          notes: [
+            surface.config.sandbox.previewCommand
+              ? `preview-command=${surface.config.sandbox.previewCommand}`
+              : 'preview-command not configured'
+          ]
+        })
+      ]
+    }),
     commands: uniqueValues([
       buildTriageCommand({ stateDir: surface.stateDir, json: true }),
       ...approvalCandidates.map((candidate) => candidate.command),
@@ -237,6 +299,19 @@ export function renderMarkdown(report) {
     }
   }
 
+  lines.push('');
+  lines.push('Review workflow:');
+  for (const stage of report.workflow.stages) {
+    lines.push(`- ${stage.title} [${stage.status}]`);
+    lines.push(`  - ${stage.summary}`);
+    for (const command of stage.commands) {
+      lines.push(`  - command: ${command}`);
+    }
+    for (const note of stage.notes) {
+      lines.push(`  - note: ${note}`);
+    }
+  }
+
   if (report.commands.length > 0) {
     lines.push('');
     lines.push('Commands:');
@@ -247,4 +322,14 @@ export function renderMarkdown(report) {
 
   lines.push('');
   return `${lines.join('\n')}\n`;
+}
+
+function reportPreviewGate(preview) {
+  if (!preview) {
+    return 'preview status unknown';
+  }
+
+  return preview.exitCode === 0
+    ? 'preview gate passing'
+    : `preview gate failing: exit ${preview.exitCode}`;
 }

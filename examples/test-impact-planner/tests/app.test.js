@@ -160,6 +160,17 @@ describe('buildPlan', () => {
     expect(plan.reasons).toEqual(['Node launcher changed.']);
   });
 
+  it('builds workflow batches for automation consumers', () => {
+    const plan = buildPlan(manifest, ['crates/t3-tape/src/lib.rs', 'packages/t3-tape-npm/src/cli.ts']);
+    expect(plan.commandBatches.map((batch) => batch.id)).toEqual(['rust', 'node']);
+    expect(plan.workflow.name).toBe('validation-routing-loop');
+    expect(plan.workflow.stages.map((stage) => stage.id)).toEqual([
+      'classify-change-set',
+      'run-validation-batches',
+      'route-result'
+    ]);
+  });
+
   it('falls back to default owners when nothing matches', () => {
     const plan = buildPlan(manifest, ['scripts/e2e.ps1']);
     expect(plan.owners).toEqual(['platform']);
@@ -180,6 +191,8 @@ describe('buildPlan', () => {
     expect(output).toContain('Mode: targeted');
     expect(output).toContain('Run:');
     expect(output).toContain('Node launcher changed.');
+    expect(output).toContain('Automation loop:');
+    expect(output).toContain('Run validation batches');
   });
 });
 

@@ -190,6 +190,21 @@ describe('buildHandoffPacket', () => {
     expect(packet.provider).toBe('exec');
     expect(packet.endpoint).toContain('agent-runner');
     expect(packet.confidenceThreshold).toBe(0.8);
+    expect(packet.configuration.agent.maxAttempts).toBe(3);
+    expect(packet.configuration.sandbox.previewCommand).toBe('pnpm test');
+  });
+
+  it('builds an automation workflow from config and triage state', () => {
+    const packet = buildHandoffPacket(fixtureStateDir, { includePendingReview: true });
+    expect(packet.workflow.name).toBe('agent-handoff-loop');
+    expect(packet.workflow.stages.map((stage) => stage.id)).toEqual([
+      'read-triage',
+      'dispatch-agents',
+      'refresh-triage',
+      'approve-ready'
+    ]);
+    expect(packet.workflow.stages[1].notes.some((note) => note.includes('max-attempts=3'))).toBe(true);
+    expect(packet.workflow.gateConditions.some((note) => note.includes('preview-command configured'))).toBe(true);
   });
 
   it('warns when a filtered patch is missing from patch.md', () => {
@@ -236,6 +251,8 @@ describe('buildHandoffPacket', () => {
     expect(output).toContain('# Agent Handoff Queue');
     expect(output).toContain('PATCH-001 conflict-resolution');
     expect(output).toContain('PATCH-002 re-derivation');
+    expect(output).toContain('Automation loop:');
+    expect(output).toContain('Dispatch agent jobs');
   });
 });
 

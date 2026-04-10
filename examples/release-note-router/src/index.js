@@ -1,3 +1,5 @@
+import { createWorkflow, createWorkflowStage } from '../../shared/workflow.js';
+
 const GROUP_TITLES = {
   features: 'Features',
   fixes: 'Fixes',
@@ -138,12 +140,51 @@ export function buildReleaseSummary(entries, options = {}) {
       entries: groups.get(group)
     }))
     .filter((group) => group.entries.length > 0);
+  const bump = determineVersionBump(normalized);
 
   return {
     version: options.version ?? null,
-    bump: determineVersionBump(normalized),
+    bump,
     totalCommits: normalized.length,
-    groups: renderedGroups
+    groups: renderedGroups,
+    workflow: createWorkflow({
+      name: 'release-train-loop',
+      summary: 'Classify commits, draft grouped release notes, then hand the result to release automation.',
+      automationTargets: ['release-bot', 'changelog-job', 'announcement-bot'],
+      gateConditions: [
+        `bump=${bump}`,
+        bump === 'major'
+          ? 'major bump requires manual approval'
+          : 'standard release automation can proceed'
+      ],
+      stages: [
+        createWorkflowStage({
+          id: 'classify-commits',
+          title: 'Classify commits',
+          summary: 'Normalize commit input and compute the version bump class.',
+          items: normalized.map((entry) => entry.raw),
+          notes: [`total-commits=${normalized.length}`, `bump=${bump}`]
+        }),
+        createWorkflowStage({
+          id: 'draft-release-notes',
+          title: 'Draft release notes',
+          summary: 'Group commits into stable sections that can be published directly or attached to a PR.',
+          items: renderedGroups.map((group) => group.title),
+          notes: renderedGroups.map((group) => `${group.title}=${group.entries.length}`)
+        }),
+        createWorkflowStage({
+          id: 'handoff-release',
+          title: 'Handoff release',
+          summary: 'Pass the bump decision and grouped notes to the release pipeline.',
+          status: bump === 'major' ? 'manual-approval' : 'ready',
+          items: options.version ? [options.version] : [],
+          notes: [
+            options.version ? `version=${options.version}` : 'version not supplied',
+            `publish-bump=${bump}`
+          ]
+        })
+      ]
+    })
   };
 }
 
@@ -159,6 +200,16 @@ export function renderMarkdown(summary) {
     lines.push(`### ${group.title}`);
     for (const entry of group.entries) {
       lines.push(`- ${entry.line}${entry.breaking ? ' [breaking]' : ''}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('Release workflow:');
+  for (const stage of summary.workflow.stages) {
+    lines.push(`- ${stage.title} [${stage.status}]`);
+    lines.push(`  - ${stage.summary}`);
+    for (const note of stage.notes) {
+      lines.push(`  - note: ${note}`);
     }
   }
 

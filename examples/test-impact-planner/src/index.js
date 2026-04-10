@@ -1,4 +1,5 @@
 import { uniqueValues } from '../../shared/collections.js';
+import { createWorkflow, createWorkflowStage } from '../../shared/workflow.js';
 
 const RISK_RANK = {
   none: 0,
@@ -151,6 +152,27 @@ export function buildPlan(manifest, changedFiles) {
     ...(mode === 'fallback' ? ['No specific rule matched. Using the default test plan.'] : [])
   ]);
   const risk = allMatches.reduce((current, rule) => highestRisk(current, rule.risk), mode === 'fallback' ? 'low' : 'none');
+  const commandBatches = allMatches.map((rule) => ({
+    id: rule.id,
+    commands: rule.commands,
+    matchedFiles: rule.matchedFiles,
+    owners: rule.owners,
+    labels: rule.labels,
+    risk: rule.risk,
+    reason: rule.reason
+  }));
+
+  if (mode === 'fallback' && (manifest.defaultCommands ?? []).length > 0) {
+    commandBatches.push({
+      id: 'default-fallback',
+      commands: manifest.defaultCommands ?? [],
+      matchedFiles: unmatchedFiles,
+      owners: manifest.defaultOwners ?? [],
+      labels: ['fallback'],
+      risk: 'low',
+      reason: 'No explicit rule matched. Running the default validation plan.'
+    });
+  }
 
   return {
     mode,
@@ -162,7 +184,45 @@ export function buildPlan(manifest, changedFiles) {
     owners,
     labels,
     reasons,
-    risk
+    risk,
+    commandBatches,
+    workflow: createWorkflow({
+      name: 'validation-routing-loop',
+      summary: 'Classify the change set, run the smallest useful validation batch, then route the result to the right owners.',
+      automationTargets: ['ci-router', 'pull-request-bot', 'change-risk-board'],
+      gateConditions: [
+        `mode=${mode}`,
+        `risk=${risk}`
+      ],
+      stages: [
+        createWorkflowStage({
+          id: 'classify-change-set',
+          title: 'Classify the change set',
+          summary: 'Normalize changed files and determine whether the run is docs-only, targeted, full-run, or fallback.',
+          items: files,
+          notes: [
+            `${ignoredFiles.length} ignored file(s)`,
+            `${unmatchedFiles.length} unmatched file(s)`
+          ]
+        }),
+        createWorkflowStage({
+          id: 'run-validation-batches',
+          title: 'Run validation batches',
+          summary: 'Execute only the commands selected by the matching rules.',
+          status: commands.length > 0 ? 'ready' : 'no-commands',
+          commands,
+          items: commandBatches.map((batch) => batch.id),
+          notes: reasons
+        }),
+        createWorkflowStage({
+          id: 'route-result',
+          title: 'Route the result',
+          summary: 'Send the run to the correct owners and labels for follow-up.',
+          items: owners,
+          notes: labels
+        })
+      ]
+    })
   };
 }
 
@@ -188,6 +248,19 @@ export function formatPlan(plan) {
     lines.push('Why:');
     for (const reason of plan.reasons) {
       lines.push(`- ${reason}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('Automation loop:');
+  for (const stage of plan.workflow.stages) {
+    lines.push(`- ${stage.title} [${stage.status}]`);
+    lines.push(`  - ${stage.summary}`);
+    for (const command of stage.commands) {
+      lines.push(`  - command: ${command}`);
+    }
+    for (const note of stage.notes) {
+      lines.push(`  - note: ${note}`);
     }
   }
 
