@@ -433,9 +433,12 @@ fn process_patches(
     for entry in planned_entries {
         let blockers = unresolved_dependencies(&patches, &entry.requires);
         let mut patch = if blockers.is_empty() {
-            let material = context.materials.get(&entry.id.to_string()).ok_or_else(|| {
-                RedtapeError::Validation(format!("missing patch material for {}", entry.id))
-            })?;
+            let material = context
+                .materials
+                .get(&entry.id.to_string())
+                .ok_or_else(|| {
+                    RedtapeError::Validation(format!("missing patch material for {}", entry.id))
+                })?;
             classify_patch(context.sandbox, material)?
         } else {
             blocked_patch(entry, blockers)

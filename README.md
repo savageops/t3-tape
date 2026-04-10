@@ -114,6 +114,12 @@ t3-tape --state-dir /path/to/shared/state init --upstream https://github.com/exa
 t3-tape init --upstream https://github.com/example/upstream --base-ref HEAD
 ```
 
+If PatchMD-owned files already exist, `init` stays strict:
+
+- empty `.t3/patch.md` is repaired into a valid header
+- valid existing owned files are left alone
+- malformed existing `.t3/patch.md` or `.t3/patch/config.json` stops `init` with a validation error instead of printing a fake green success
+
 Initial files:
 
 - `.t3/patch.md`
@@ -132,6 +138,8 @@ When you customize the fork, the change is not considered real until both of the
    `.t3/patch/patches/PATCH-###.diff`
 2. intent layer
    `.t3/patch.md`
+
+`patch add` records ordinary tracked edits and unstaged untracked files. It excludes the configured shared state root, so `.t3/patch.md`, `.t3/patch/**`, and unrelated Theo-owned `.t3/*` siblings never get pulled into a feature diff.
 
 T3 Tape also writes one companion metadata file:
 
@@ -505,6 +513,13 @@ Common environment variables:
 - `T3_TAPE_BINARY_PATH`
 - `T3_TAPE_AGENT_AUTH_TOKEN`
 - `T3_TAPE_AUTHOR`
+
+Installed `pre-commit` hook resolution order:
+
+1. `T3_TAPE_BINARY_PATH`
+2. `t3-tape` on `PATH`
+3. `./node_modules/.bin/t3-tape`
+4. `pnpm exec t3-tape`
 
 ### Agent providers
 

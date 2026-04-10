@@ -246,7 +246,9 @@ fn validate_fails_when_behavior_assertions_drift() {
         .assert()
         .failure()
         .code(2)
-        .stdout(predicate::str::contains("meta behavior-assertions mismatch"));
+        .stdout(predicate::str::contains(
+            "meta behavior-assertions mismatch",
+        ));
 }
 
 #[test]
@@ -393,6 +395,62 @@ fn validate_rejects_invalid_triage_schema() {
 }
 
 #[test]
+fn validate_rejects_wrong_state_root() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let tracked = seed_repo(&temp);
+    run_init(&temp);
+    add_patch(
+        &temp,
+        &tracked,
+        "state-root-drift",
+        "Exercise state-root validation.",
+    );
+
+    let patch_md = patch_md_path(&temp);
+    let current = fs::read_to_string(&patch_md).unwrap();
+    let updated = current.replacen("> state-root: patch", "> state-root: nonsense", 1);
+    fs::write(&patch_md, updated).unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args(["validate"])
+        .assert()
+        .failure()
+        .code(2)
+        .stdout(predicate::str::contains(
+            "patch.md header state-root mismatch",
+        ));
+}
+
+#[test]
+fn validate_rejects_missing_state_root() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let tracked = seed_repo(&temp);
+    run_init(&temp);
+    add_patch(
+        &temp,
+        &tracked,
+        "missing-state-root",
+        "Exercise missing state-root validation.",
+    );
+
+    let patch_md = patch_md_path(&temp);
+    let current = fs::read_to_string(&patch_md).unwrap();
+    let updated = current.replace("> state-root: patch\n", "");
+    fs::write(&patch_md, updated).unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args(["validate"])
+        .assert()
+        .failure()
+        .code(2)
+        .stdout(predicate::str::contains(
+            "patch.md header missing required state-root `patch`",
+        ));
+}
+
+#[test]
 fn validate_staged_fails_without_matching_patchmd_updates() {
     let temp = assert_fs::TempDir::new().unwrap();
     let tracked = seed_repo(&temp);
@@ -499,8 +557,11 @@ fn hooks_print_outputs_are_stable() {
         .args(["hooks", "print", "pre-commit"])
         .assert()
         .success()
-        .stdout(predicate::eq(
-            "#!/bin/sh\nt3-tape validate --staged\nif [ $? -ne 0 ]; then\n  echo \"PatchMD: staged changes missing intent entry. Run: t3-tape patch add\"\n  exit 1\nfi\n",
+        .stdout(predicate::str::contains("T3_TAPE_BINARY_PATH"))
+        .stdout(predicate::str::contains("command -v t3-tape"))
+        .stdout(predicate::str::contains("./node_modules/.bin/t3-tape"))
+        .stdout(predicate::str::contains(
+            "pnpm exec t3-tape validate --staged",
         ));
 
     t3_tape_command()
@@ -534,6 +595,11 @@ fn hooks_install_refuses_overwrite_without_force() {
         .assert()
         .success()
         .stdout(predicate::str::contains("installed pre-commit hook"));
+
+    let hook_body = fs::read_to_string(temp.path().join(".git/hooks/pre-commit")).unwrap();
+    assert!(hook_body.contains("T3_TAPE_BINARY_PATH"));
+    assert!(hook_body.contains("./node_modules/.bin/t3-tape"));
+    assert!(hook_body.contains("pnpm exec t3-tape validate --staged"));
 
     t3_tape_command()
         .current_dir(temp.path())

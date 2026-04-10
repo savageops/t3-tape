@@ -77,8 +77,16 @@ fn validate_config(
         return Ok(());
     }
 
-    if let Err(err) = schema::read_config(&paths.config_path) {
-        report.push_error(err.to_string().replace("validation failed: ", ""));
+    match schema::read_config(&paths.config_path) {
+        Ok(config) => {
+            if config.protocol != PROTOCOL_VERSION {
+                report.push_error(format!(
+                    "config.json protocol mismatch: expected {} but found {}",
+                    PROTOCOL_VERSION, config.protocol
+                ));
+            }
+        }
+        Err(err) => report.push_error(err.to_string().replace("validation failed: ", "")),
     }
 
     Ok(())
@@ -163,9 +171,8 @@ fn validate_triage(
         }
     }
 
-    let summary = serde_json::from_value::<TriageSummary>(value).map_err(|err| {
-        RedtapeError::Validation(format!("invalid triage summary: {err}"))
-    })?;
+    let summary = serde_json::from_value::<TriageSummary>(value)
+        .map_err(|err| RedtapeError::Validation(format!("invalid triage summary: {err}")))?;
     Ok(Some(summary))
 }
 
@@ -205,6 +212,13 @@ fn validate_patch_document(
                     "patch.md header protocol mismatch: expected {} but found {}",
                     PROTOCOL_VERSION, header.protocol
                 ));
+            }
+            match header.state_root.as_deref() {
+                Some("patch") => {}
+                Some(other) => report.push_error(format!(
+                    "patch.md header state-root mismatch: expected `patch` but found `{other}`"
+                )),
+                None => report.push_error("patch.md header missing required state-root `patch`"),
             }
             if header.base_ref.trim().is_empty() {
                 report.push_error("patch.md header base-ref cannot be empty");
@@ -286,10 +300,9 @@ fn validate_patch_entries(
             let raw_diff = fs::read_to_string(&diff_path)?;
             match UnifiedDiff::parse(&raw_diff) {
                 Ok(diff) => parsed_diff = Some(diff),
-                Err(err) => report.push_error(format!(
-                    "patch {} diff parse failed: {}",
-                    entry.id, err
-                )),
+                Err(err) => {
+                    report.push_error(format!("patch {} diff parse failed: {}", entry.id, err))
+                }
             }
         }
 
@@ -377,12 +390,8 @@ fn validate_meta_parity(
         ));
     }
 
-    let expected_ref = expected_patch_ref(
-        paths,
-        entry.id.to_string(),
-        triage_summary,
-        git_ref_cache,
-    );
+    let expected_ref =
+        expected_patch_ref(paths, entry.id.to_string(), triage_summary, git_ref_cache);
     if let Some(expected_ref) = expected_ref {
         if meta.base_ref != expected_ref {
             report.push_error(format!(
@@ -431,7 +440,10 @@ fn validate_meta_parity(
         Some(diff) => {
             let expected_surface_hash = patch::surface_hash::compute(diff);
             if meta.surface_hash.trim().is_empty() {
-                report.push_error(format!("patch {} meta surface-hash cannot be empty", entry.id));
+                report.push_error(format!(
+                    "patch {} meta surface-hash cannot be empty",
+                    entry.id
+                ));
             } else if meta.surface_hash != expected_surface_hash {
                 report.push_error(format!(
                     "patch {} meta surface-hash mismatch: expected `{expected_surface_hash}` but found `{}`",
@@ -441,7 +453,10 @@ fn validate_meta_parity(
         }
         None => {
             if meta.surface_hash.trim().is_empty() {
-                report.push_error(format!("patch {} meta surface-hash cannot be empty", entry.id));
+                report.push_error(format!(
+                    "patch {} meta surface-hash cannot be empty",
+                    entry.id
+                ));
             }
         }
     }

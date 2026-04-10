@@ -85,13 +85,7 @@ pub fn head_ref(repo_root: &Path) -> Result<String, RedtapeError> {
 }
 
 pub fn capture_git_diff(paths: &ResolvedPaths, staged: bool) -> Result<String, RedtapeError> {
-    let args = if staged {
-        vec!["diff", "--cached", "--no-ext-diff"]
-    } else {
-        vec!["diff", "--no-ext-diff", "HEAD"]
-    };
-
-    let diff = git_output(&paths.repo_root, &args)?;
+    let diff = capture_project_diff(paths, staged)?;
     if diff.trim().is_empty() {
         return Err(RedtapeError::Usage(
             "no diff to record; make a change or use --staged".to_string(),
@@ -99,27 +93,72 @@ pub fn capture_git_diff(paths: &ResolvedPaths, staged: bool) -> Result<String, R
     }
 
     let parsed = UnifiedDiff::parse(&diff)?;
-    let patch_registry_path = repo_relative(&paths.repo_root, &paths.patch_md_path);
-    let plugin_root = repo_relative(&paths.repo_root, &paths.plugin_root);
+    let state_dir_root = repo_relative(&paths.repo_root, &paths.state_dir);
     let filtered = parsed
         .files
         .into_iter()
-        .filter(|file| !is_patchmd_owned_path(&file.path, patch_registry_path.as_deref(), plugin_root.as_deref()))
+        .filter(|file| !is_ignored_state_path(&file.path, state_dir_root.as_deref()))
         .collect::<Vec<_>>();
 
     if filtered.is_empty() {
-        let ownership = match (patch_registry_path.as_deref(), plugin_root.as_deref()) {
-            (Some(registry), Some(plugin_root)) => format!("`{registry}` and `{plugin_root}/**`"),
-            (Some(registry), None) => format!("`{registry}`"),
-            (None, Some(plugin_root)) => format!("`{plugin_root}/**`"),
-            (None, None) => "PatchMD-owned state".to_string(),
+        let ownership = match state_dir_root.as_deref() {
+            Some(root) => format!("ignored state under `{root}/**`"),
+            None => "ignored state".to_string(),
         };
         return Err(RedtapeError::Usage(format!(
-            "no diff to record; remaining changes only touch PatchMD-owned state under {ownership}"
+            "no diff to record; remaining changes only touch {ownership}"
         )));
     }
 
     Ok(UnifiedDiff::render_files(&filtered))
+}
+
+fn capture_project_diff(paths: &ResolvedPaths, staged: bool) -> Result<String, RedtapeError> {
+    let tracked_args = if staged {
+        vec!["diff", "--cached", "--no-ext-diff"]
+    } else {
+        vec!["diff", "--no-ext-diff", "HEAD"]
+    };
+
+    let mut rendered = git_output_raw(&paths.repo_root, &tracked_args, &[0])?;
+    if !staged {
+        rendered.push_str(&capture_untracked_diff(&paths.repo_root)?);
+    }
+
+    Ok(rendered)
+}
+
+fn capture_untracked_diff(repo_root: &Path) -> Result<String, RedtapeError> {
+    let output = Command::new("git")
+        .args(["ls-files", "--others", "--exclude-standard"])
+        .current_dir(repo_root)
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let detail = if stderr.is_empty() {
+            "git ls-files --others --exclude-standard failed".to_string()
+        } else {
+            stderr
+        };
+        return Err(RedtapeError::Git(detail));
+    }
+
+    let mut rendered = String::new();
+    for path in String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
+        let raw_diff = git_output_raw(
+            repo_root,
+            &["diff", "--no-index", "--binary", "--", "/dev/null", path],
+            &[1],
+        )?;
+        rendered.push_str(&raw_diff);
+    }
+
+    Ok(rendered)
 }
 
 pub fn default_author(repo_root: &Path) -> String {
@@ -409,6 +448,30 @@ fn git_output(repo_root: &Path, args: &[&str]) -> Result<String, RedtapeError> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
+fn git_output_raw(
+    repo_root: &Path,
+    args: &[&str],
+    allowed_nonzero_codes: &[i32],
+) -> Result<String, RedtapeError> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(repo_root)
+        .output()?;
+
+    let code = output.status.code().unwrap_or_default();
+    if !output.status.success() && !allowed_nonzero_codes.contains(&code) {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let detail = if stderr.is_empty() {
+            format!("git {:?} failed with {}", args, output.status)
+        } else {
+            stderr
+        };
+        return Err(RedtapeError::Git(detail));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
 fn ensure_trailing_newline(value: &str) -> String {
     if value.ends_with('\n') {
         value.to_string()
@@ -431,10 +494,6 @@ fn repo_relative(repo_root: &Path, target: &Path) -> Option<String> {
     }
 }
 
-fn is_patchmd_owned_path(path: &str, patch_registry_path: Option<&str>, plugin_root: Option<&str>) -> bool {
-    if patch_registry_path.is_some_and(|registry| path == registry) {
-        return true;
-    }
-
-    plugin_root.is_some_and(|root| path == root || path.starts_with(&format!("{root}/")))
+fn is_ignored_state_path(path: &str, state_dir_root: Option<&str>) -> bool {
+    state_dir_root.is_some_and(|root| path == root || path.starts_with(&format!("{root}/")))
 }

@@ -22,8 +22,7 @@ fn render_print(kind: &HooksPrintKind) -> String {
     match kind {
         HooksPrintKind::PreCommit => pre_commit_hook(),
         HooksPrintKind::Gitignore => {
-            ".t3/patch/sandbox/\n.t3/patch/config.json.local\n.t3/patch/state.lock\n"
-                .to_string()
+            ".t3/patch/sandbox/\n.t3/patch/config.json.local\n.t3/patch/state.lock\n".to_string()
         }
         HooksPrintKind::Gitattributes => {
             ".t3/patch.md merge=union\n.t3/patch/migration.log merge=union\n".to_string()
@@ -92,7 +91,7 @@ fn git_hooks_dir(repo_root: &std::path::Path) -> Result<std::path::PathBuf, Redt
 }
 
 fn pre_commit_hook() -> String {
-    "#!/bin/sh\nt3-tape validate --staged\nif [ $? -ne 0 ]; then\n  echo \"PatchMD: staged changes missing intent entry. Run: t3-tape patch add\"\n  exit 1\nfi\n".to_string()
+    "#!/bin/sh\nif [ -n \"$T3_TAPE_BINARY_PATH\" ]; then\n  \"$T3_TAPE_BINARY_PATH\" validate --staged\n  status=$?\nelif command -v t3-tape >/dev/null 2>&1; then\n  t3-tape validate --staged\n  status=$?\nelif [ -f \"./node_modules/.bin/t3-tape\" ]; then\n  ./node_modules/.bin/t3-tape validate --staged\n  status=$?\nelif command -v pnpm >/dev/null 2>&1; then\n  pnpm exec t3-tape validate --staged\n  status=$?\nelse\n  echo \"PatchMD: unable to locate t3-tape. Set T3_TAPE_BINARY_PATH, install t3-tape on PATH, or install the npm package locally.\" >&2\n  exit 1\nfi\nif [ $status -ne 0 ]; then\n  echo \"PatchMD: staged changes missing intent entry or t3-tape could not run.\"\n  exit $status\nfi\n".to_string()
 }
 
 #[cfg(unix)]

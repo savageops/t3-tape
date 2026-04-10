@@ -537,7 +537,8 @@ fn update_with_exec_agent_stages_pending_review_and_approval_rewrites_state() {
 
     assert_eq!(git_output(&pair.fork, &["rev-parse", "HEAD"]), head_before);
 
-    let diff_after = fs::read_to_string(pair.fork.join(".t3/patch/patches/PATCH-001.diff")).unwrap();
+    let diff_after =
+        fs::read_to_string(pair.fork.join(".t3/patch/patches/PATCH-001.diff")).unwrap();
     assert_ne!(diff_before, diff_after);
     assert!(diff_after.contains("+patched"));
     assert!(diff_after.contains("-upstream"));
@@ -630,7 +631,8 @@ fn preview_failure_blocks_approval_but_keeps_artifacts() {
         .code(3)
         .stderr(predicate::str::contains("sandbox preview failed"));
 
-    let diff_after = fs::read_to_string(pair.fork.join(".t3/patch/patches/PATCH-001.diff")).unwrap();
+    let diff_after =
+        fs::read_to_string(pair.fork.join(".t3/patch/patches/PATCH-001.diff")).unwrap();
     assert_eq!(diff_before, diff_after);
 }
 
@@ -724,7 +726,9 @@ fn update_applies_dependencies_in_requires_order() {
         .args(["update", "--ref", &to_ref])
         .assert()
         .success()
-        .stdout(predicate::str::contains("PATCH-002\tdependent-patch\tCLEAN"));
+        .stdout(predicate::str::contains(
+            "PATCH-002\tdependent-patch\tCLEAN",
+        ));
 
     let triage = read_json(&pair.fork.join(".t3/patch/triage.json"));
     assert_eq!(triage["patches"][0]["id"], "PATCH-001");
@@ -810,7 +814,9 @@ fn partial_approval_keeps_global_base_until_cycle_completion() {
         .args(["update", "--ref", &to_ref])
         .assert()
         .success()
-        .stdout(predicate::str::contains("PATCH-002\tsecond-clean-patch\tCLEAN"));
+        .stdout(predicate::str::contains(
+            "PATCH-002\tsecond-clean-patch\tCLEAN",
+        ));
 
     t3_tape_command()
         .current_dir(&pair.fork)

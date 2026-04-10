@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
-use std::io::{Read, Seek, SeekFrom};
 use std::io::Write;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};

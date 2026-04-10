@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::exit::RedtapeError;
+use crate::patch::patch_md;
 use paths::{ResolveOptions, ResolvedPaths};
 
 #[derive(Debug, Clone)]
@@ -57,26 +58,18 @@ pub fn initialize(request: InitRequest) -> Result<InitReport, RedtapeError> {
     ensure_directory(&report.paths.patches_dir, &mut report.created_directories)?;
     ensure_directory(&report.paths.sandbox_dir, &mut report.created_directories)?;
 
-    ensure_file(
+    ensure_config_file(
         &report.paths.config_path,
-        schema::render_config(&upstream)?.as_bytes(),
+        &upstream,
         &mut report.created_files,
     )?;
-    if report.paths.patch_md_path.exists() {
-        let existing = fs::read_to_string(&report.paths.patch_md_path)?;
-        if existing.trim().is_empty() {
-            let resolved_base_ref = resolve_base_ref(&report.paths.repo_root, &base_ref)?;
-            let header = schema::build_patch_header(&upstream, &resolved_base_ref);
-            atomic::write_file_atomic(&report.paths.patch_md_path, header.as_bytes())?;
-        }
-    } else {
-        let resolved_base_ref = resolve_base_ref(&report.paths.repo_root, &base_ref)?;
-        ensure_file(
-            &report.paths.patch_md_path,
-            schema::build_patch_header(&upstream, &resolved_base_ref).as_bytes(),
-            &mut report.created_files,
-        )?;
-    }
+    ensure_patch_registry(
+        &report.paths.patch_md_path,
+        &report.paths.repo_root,
+        &upstream,
+        &base_ref,
+        &mut report.created_files,
+    )?;
     ensure_file(
         &report.paths.migration_log_path,
         schema::empty_migration_log().as_bytes(),
@@ -162,6 +155,85 @@ fn ensure_file(
     }
 
     atomic::write_new_file_atomic(path, contents)?;
+    created.push(path.to_path_buf());
+    Ok(())
+}
+
+fn ensure_config_file(
+    path: &Path,
+    upstream: &str,
+    created: &mut Vec<PathBuf>,
+) -> Result<(), RedtapeError> {
+    if path.exists() {
+        if !path.is_file() {
+            return Err(RedtapeError::Usage(format!(
+                "expected file at {}",
+                path.display()
+            )));
+        }
+
+        let config = schema::read_config(path)?;
+        if config.protocol != schema::PROTOCOL_VERSION {
+            return Err(RedtapeError::Validation(format!(
+                "existing config.json protocol mismatch at {}: expected {} but found {}",
+                path.display(),
+                schema::PROTOCOL_VERSION,
+                config.protocol
+            )));
+        }
+        return Ok(());
+    }
+
+    atomic::write_new_file_atomic(path, schema::render_config(upstream)?.as_bytes())?;
+    created.push(path.to_path_buf());
+    Ok(())
+}
+
+fn ensure_patch_registry(
+    path: &Path,
+    repo_root: &Path,
+    upstream: &str,
+    base_ref: &str,
+    created: &mut Vec<PathBuf>,
+) -> Result<(), RedtapeError> {
+    if path.exists() {
+        if !path.is_file() {
+            return Err(RedtapeError::Usage(format!(
+                "expected file at {}",
+                path.display()
+            )));
+        }
+
+        let existing = fs::read_to_string(path)?;
+        if existing.trim().is_empty() {
+            let resolved_base_ref = resolve_base_ref(repo_root, base_ref)?;
+            let header = schema::build_patch_header(upstream, &resolved_base_ref);
+            atomic::write_file_atomic(path, header.as_bytes())?;
+            return Ok(());
+        }
+
+        let document = patch_md::parse(&existing)?;
+        let parsed_header = patch_md::parse_header(&document.header)?;
+        if parsed_header.protocol != schema::PROTOCOL_VERSION {
+            return Err(RedtapeError::Validation(format!(
+                "existing patch.md protocol mismatch at {}: expected {} but found {}",
+                path.display(),
+                schema::PROTOCOL_VERSION,
+                parsed_header.protocol
+            )));
+        }
+        if parsed_header.state_root.as_deref() != Some("patch") {
+            return Err(RedtapeError::Validation(format!(
+                "existing patch.md state-root mismatch at {}: expected `patch`",
+                path.display()
+            )));
+        }
+        return Ok(());
+    }
+
+    let resolved_base_ref = resolve_base_ref(repo_root, base_ref)?;
+    let header = schema::build_patch_header(upstream, &resolved_base_ref);
+    atomic::write_new_file_atomic(path, header.as_bytes())?;
     created.push(path.to_path_buf());
     Ok(())
 }

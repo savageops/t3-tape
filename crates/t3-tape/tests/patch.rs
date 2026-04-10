@@ -437,6 +437,12 @@ fn patch_add_excludes_patchmd_owned_state_from_recorded_diff() {
     run_init(&temp);
 
     tracked.write_str("alpha\napp change\n").unwrap();
+    temp.child(".t3/other-tool.json")
+        .write_str("{\"owner\":\"theo\"}\n")
+        .unwrap();
+    temp.child(".t3/foo/bar.txt")
+        .write_str("foreign sibling\n")
+        .unwrap();
     temp.child(".t3/patch/migration.log")
         .write_str("owned-state-only change\n")
         .unwrap();
@@ -459,6 +465,8 @@ fn patch_add_excludes_patchmd_owned_state_from_recorded_diff() {
 
     let diff = fs::read_to_string(temp.child(".t3/patch/patches/PATCH-001.diff").path()).unwrap();
     assert!(diff.contains("src/app.txt"));
+    assert!(!diff.contains(".t3/other-tool.json"));
+    assert!(!diff.contains(".t3/foo/bar.txt"));
     assert!(!diff.contains(".t3/patch.md"));
     assert!(!diff.contains(".t3/patch/migration.log"));
 }
@@ -487,5 +495,100 @@ fn patch_add_fails_when_remaining_diff_only_contains_patchmd_owned_state() {
         .assert()
         .failure()
         .code(1)
-        .stderr(predicate::str::contains("remaining changes only touch PatchMD-owned state"));
+        .stderr(predicate::str::contains(
+            "remaining changes only touch ignored state",
+        ));
+}
+
+#[test]
+fn patch_add_fails_when_remaining_diff_only_contains_foreign_t3_state() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    seed_repo(&temp);
+    run_init(&temp);
+
+    temp.child(".t3/other-tool.json")
+        .write_str("{\"owner\":\"theo\"}\n")
+        .unwrap();
+    temp.child(".t3/foo/bar.txt")
+        .write_str("foreign sibling\n")
+        .unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args([
+            "patch",
+            "add",
+            "--title",
+            "foreign-state-only",
+            "--intent",
+            "Should fail when only foreign shared-state files changed.",
+        ])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains(
+            "remaining changes only touch ignored state",
+        ));
+}
+
+#[test]
+fn patch_add_captures_untracked_files_without_staging() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    seed_repo(&temp);
+    run_init(&temp);
+
+    temp.child("src/new_file.txt")
+        .write_str("brand new content\n")
+        .unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args([
+            "patch",
+            "add",
+            "--title",
+            "new-file",
+            "--intent",
+            "Record a brand new unstaged file.",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("created patch PATCH-001"));
+
+    let diff = fs::read_to_string(temp.child(".t3/patch/patches/PATCH-001.diff").path()).unwrap();
+    assert!(diff.contains("diff --git a/src/new_file.txt b/src/new_file.txt"));
+    assert!(diff.contains("new file mode"));
+    assert!(diff.contains("+brand new content"));
+}
+
+#[test]
+fn patch_add_captures_tracked_and_untracked_changes_together() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let tracked = seed_repo(&temp);
+    run_init(&temp);
+
+    tracked.write_str("alpha\ntracked change\n").unwrap();
+    temp.child("src/new_file.txt")
+        .write_str("brand new content\n")
+        .unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args([
+            "patch",
+            "add",
+            "--title",
+            "mixed-change",
+            "--intent",
+            "Record tracked and untracked changes together.",
+        ])
+        .assert()
+        .success();
+
+    let diff = fs::read_to_string(temp.child(".t3/patch/patches/PATCH-001.diff").path()).unwrap();
+    assert!(diff.contains("src/app.txt"));
+    assert!(diff.contains("src/new_file.txt"));
+
+    let patch_md = fs::read_to_string(temp.child(".t3/patch.md").path()).unwrap();
+    assert!(patch_md.contains("- **files:** [src/app.txt, src/new_file.txt]"));
 }

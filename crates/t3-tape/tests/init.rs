@@ -5,6 +5,7 @@ use std::process::Command;
 use assert_cmd::prelude::*;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
+use t3_tape::store::schema;
 
 fn t3_tape_command() -> Command {
     Command::cargo_bin("t3-tape").expect("t3-tape binary should build")
@@ -250,11 +251,14 @@ fn init_refuses_to_overwrite_non_empty_files() {
     plugin_dir.child("sandbox").create_dir_all().unwrap();
     plugin_dir
         .child("config.json")
-        .write_str("custom-config\n")
+        .write_str(&schema::render_config("https://example.com/org/upstream.git").unwrap())
         .unwrap();
     state_dir
         .child("patch.md")
-        .write_str("custom-patch\n")
+        .write_str(&schema::build_patch_header(
+            "https://example.com/org/upstream.git",
+            &git_head(temp.path()),
+        ))
         .unwrap();
     plugin_dir
         .child("migration.log")
@@ -279,11 +283,14 @@ fn init_refuses_to_overwrite_non_empty_files() {
 
     assert_eq!(
         fs::read_to_string(plugin_dir.child("config.json").path()).unwrap(),
-        "custom-config\n"
+        schema::render_config("https://example.com/org/upstream.git").unwrap()
     );
     assert_eq!(
         fs::read_to_string(state_dir.child("patch.md").path()).unwrap(),
-        "custom-patch\n"
+        schema::build_patch_header(
+            "https://example.com/org/upstream.git",
+            &git_head(temp.path()),
+        )
     );
     assert_eq!(
         fs::read_to_string(plugin_dir.child("migration.log").path()).unwrap(),
@@ -308,7 +315,7 @@ fn init_repairs_empty_patch_md() {
 
     plugin_dir
         .child("config.json")
-        .write_str("custom-config\n")
+        .write_str(&schema::render_config("https://example.com/org/upstream.git").unwrap())
         .unwrap();
     state_dir.child("patch.md").write_str("\n  \n").unwrap();
     plugin_dir
@@ -340,7 +347,7 @@ fn init_repairs_empty_patch_md() {
 
     assert_eq!(
         fs::read_to_string(plugin_dir.child("config.json").path()).unwrap(),
-        "custom-config\n"
+        schema::render_config("https://example.com/org/upstream.git").unwrap()
     );
     assert_eq!(
         fs::read_to_string(plugin_dir.child("migration.log").path()).unwrap(),
@@ -416,4 +423,70 @@ fn init_tolerates_foreign_t3_siblings() {
     assert!(temp.child(".t3/patch.md").path().is_file());
     assert!(temp.child(".t3/patch/config.json").path().is_file());
     assert!(temp.child(".t3/patch/patches").path().is_dir());
+}
+
+#[test]
+fn init_fails_when_existing_config_is_invalid() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    git_init(temp.path());
+
+    let state_dir = temp.child(".t3");
+    let plugin_dir = state_dir.child("patch");
+    state_dir.create_dir_all().unwrap();
+    plugin_dir.child("patches").create_dir_all().unwrap();
+    plugin_dir.child("sandbox").create_dir_all().unwrap();
+    plugin_dir
+        .child("config.json")
+        .write_str("not-json")
+        .unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args([
+            "init",
+            "--upstream",
+            "https://example.com/org/upstream.git",
+            "--base-ref",
+            "HEAD",
+        ])
+        .assert()
+        .failure()
+        .code(2)
+        .stderr(predicate::str::contains("invalid config.json"));
+}
+
+#[test]
+fn init_fails_when_existing_patch_registry_is_invalid() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    git_init(temp.path());
+
+    let state_dir = temp.child(".t3");
+    let plugin_dir = state_dir.child("patch");
+    state_dir.create_dir_all().unwrap();
+    plugin_dir.child("patches").create_dir_all().unwrap();
+    plugin_dir.child("sandbox").create_dir_all().unwrap();
+    plugin_dir
+        .child("config.json")
+        .write_str(&schema::render_config("https://example.com/org/upstream.git").unwrap())
+        .unwrap();
+    state_dir
+        .child("patch.md")
+        .write_str("not-patchmd\n")
+        .unwrap();
+
+    t3_tape_command()
+        .current_dir(temp.path())
+        .args([
+            "init",
+            "--upstream",
+            "https://example.com/org/upstream.git",
+            "--base-ref",
+            "HEAD",
+        ])
+        .assert()
+        .failure()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "missing required patch header field",
+        ));
 }
