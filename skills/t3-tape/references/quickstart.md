@@ -50,6 +50,7 @@ t3-tape validate --json
 ```
 
 Use `validate` before closing work. Use `--staged` in hooks or pre-commit flows.
+For installed hooks, the generated pre-commit script resolves `t3-tape` through `T3_TAPE_BINARY_PATH`, then `PATH`, then `./node_modules/.bin/t3-tape`, then `pnpm exec t3-tape`.
 
 ### Run an upstream migration
 

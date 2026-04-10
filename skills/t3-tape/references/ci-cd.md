@@ -19,6 +19,15 @@ t3-tape hooks print gitattributes
 t3-tape hooks install pre-commit
 ```
 
+The installed pre-commit hook is portable on purpose. It resolves `t3-tape` in this order:
+
+1. `T3_TAPE_BINARY_PATH`
+2. `t3-tape` on `PATH`
+3. `./node_modules/.bin/t3-tape`
+4. `pnpm exec t3-tape`
+
+For npm-wrapper or repo-local setups, set `T3_TAPE_BINARY_PATH` or install the local package before relying on the generated hook.
+
 ## Recommended Local Gates
 
 ```powershell

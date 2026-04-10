@@ -531,7 +531,7 @@ The agent helps with conflict resolution and re-derivation. It does not own patc
 
 ## Delivery Status
 
-As of the 2026-04-09 closeout plus the same-day 002 release-readiness reconciliation:
+As of the 2026-04-09 closeout plus the archived 002, 009, 010, and 011 follow-up reconciliations:
 
 - execution units `001a` through `001j` are the canonical delivery chain for PatchMD v0.1.0
 - the shipped CLI surface is complete for `init`, `patch add|list|show|import`, `hooks print|install`, `validate`, `update`, `triage`, `triage approve`, `rederive`, and `export`

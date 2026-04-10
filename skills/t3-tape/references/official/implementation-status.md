@@ -12,17 +12,17 @@ This document tracks shipped behavior first. It exists to keep README claims, to
 
 Refresh date: 2026-04-10
 
-This repo state was re-verified against the closeout gates after a stale execution snapshot claimed the crate still needed recovery work. The shipped repo is already beyond that snapshot. A follow-up 002 reconciliation repaired the launcher workspace packaging surface so a clean frozen install agrees with the checked-in workflows. The 010 plugin-hierarchy refactor then narrowed PatchMD ownership so `.t3/patch.md` plus `.t3/patch/**` are canonical while foreign `.t3/*` siblings remain untouched. Current evidence:
+This repo state was re-verified against the closeout gates after a stale execution snapshot claimed the crate still needed recovery work. The shipped repo is already beyond that snapshot. Follow-up chains then reconciled the launcher packaging surface, store/usability truthfulness, plugin hierarchy, and hook/runtime truthfulness so the live repo and the sold workflow stay aligned. Current evidence:
 
 - `pnpm install --frozen-lockfile`: passed after switching the launcher target packages to workspace protocol so `pnpm-lock.yaml` records the target `optionalDependencies` in the `packages/t3-tape-npm` importer.
 - `pnpm -C packages/t3-tape-npm build`: passed and emitted `dist/cli.js`, `dist/env.js`, `dist/platform.js`, and `dist/resolve.js`.
 - `pnpm -C packages/t3-tape-npm test`: passed with `Test Files 1 passed` and `Tests 9 passed`. Cross-platform optional package warnings are expected on a Windows host.
-- `cargo test -p t3-tape`: passed. Rust coverage now resolves to `9` init tests, `12` patch tests, `10` update tests, and `16` validate tests.
+- `cargo test -p t3-tape`: passed. Rust coverage now resolves to `11` init tests, `15` patch tests, `10` update tests, and `18` validate tests.
 - `cargo build --release -p t3-tape`: passed. The release binary still builds cleanly.
 - `target/release/t3-tape.exe init ...` then `target/release/t3-tape.exe validate --repo-root ...`: passed in a fresh temp git repo. `validate` returned `OK`.
 - `powershell -ExecutionPolicy Bypass -File scripts/e2e.ps1`: passed. Final output included `E2E_STATUS:` then `COMPLETE`.
 
-For future planning, treat this document plus the archived todo chain as the live source of truth when a pasted session prompt disagrees with the checked-in repo state.
+For future planning, treat this document plus the archived todo chain as the live source of truth when a pasted session prompt disagrees with the checked-in repo state. `todo/pending/` should be empty when the repo is in a completion-clean state.
 
 ## Shipped Boundaries
 
@@ -83,7 +83,9 @@ The parent chain file `001-t3-tape-patchmd.md` is archived last after closeout.
 Release-readiness note:
 - the original 001 chain delivered the PatchMD CLI and launcher system
 - the follow-up 002 chain reconciles launcher packaging parity, fresh-install reproducibility, and readiness evidence without reopening the product contract
+- the follow-up 009 chain reconciles init repair and state-dir exclusion so PatchMD does not self-record or leave broken empty registry state behind
 - the follow-up 010 chain narrows the filesystem contract so PatchMD behaves as one plugin inside `.t3`, not the owner of the whole namespace
+- the follow-up 011 chain reconciles contract truthfulness for untracked patch capture, `state-root` validation, and installed hook portability
 
 ## Ownership Rules
 
